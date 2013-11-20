@@ -162,7 +162,7 @@ namespace translinkupdater
 			string summary,
 			bool nocreate=false)
 		{
-			SavePage(
+			SavePage (
 				title: page.Title,
 				wikitext: page.Text,
 				summary: summary,
@@ -181,7 +181,6 @@ namespace translinkupdater
 				var tokens = Get ("action=tokens", cookies: true);
 				EditToken = (string)tokens ["tokens"] ["edittoken"];
 			}
-			Console.WriteLine(EditToken);
 			var editResponse = Post (
 				new Dictionary<string, string>{
 					{"action", "edit"},
@@ -197,9 +196,8 @@ namespace translinkupdater
 				showAllData: true,
 				cookies: true
 			);
-			EditToken = null;
+
 			if ((string)editResponse ["edit"] ["result"] == "Success") {
-				//EditToken = editResponse["edit"][""];
 				return true;
 			} else {
 				return false;
@@ -218,7 +216,7 @@ namespace translinkupdater
 			);
 			var pages = (IDictionary<string, JToken>)response ["query"] ["pages"];
 			foreach (var page in pages) {
-				return new Page(page.Value);
+				return new Page (page.Value);
 			}
 			throw new Exception ("Could not retrieve page '" + title + "'");
 		}
@@ -226,12 +224,21 @@ namespace translinkupdater
 		public class Page
 		{
 			protected JToken Json;
-			protected string _text;
+			protected string _text, _title, _timestamp;
 
 			public Page (JToken json)
 			{
 				Json = json;
 				_text = null;
+				_title = null;
+				_timestamp = null;
+			}
+
+			public Page (string title, string text, string timestamp = "")
+			{
+				_text = text;
+				_title = title;
+				_timestamp = timestamp;
 			}
 
 			public string Text {
@@ -246,11 +253,19 @@ namespace translinkupdater
 			}
 
 			public string Title {
-				get { return (string)Json ["title"]; }
+				get {
+					if (_title == null)
+						_title = (string)Json ["title"];
+					return _title;
+				}
 			}
 
 			public string Timestamp {
-				get { return (string)Json ["revisions"] [0] ["timestamp"]; }
+				get {
+					if (_timestamp == null)
+						_timestamp = (string)Json ["revisions"] [0] ["timestamp"];
+					return _timestamp;
+				}
 			}
 
 			public override string ToString ()
@@ -320,7 +335,7 @@ namespace translinkupdater
 				}
 				var members = (IDictionary<string, JToken>)response ["query"] ["pages"];
 				foreach (var m in members) {
-					yield return new Page(m.Value);
+					yield return new Page (m.Value);
 				}
 				pagesLeft -= step;
 			}

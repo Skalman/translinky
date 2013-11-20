@@ -77,6 +77,8 @@
     <Compile Include="TranslationLinkUpdater.cs" />
     <Compile Include="SignInWindow.cs" />
     <Compile Include="gtk-gui\translinkupdater.SignInWindow.cs" />
+    <Compile Include="Section.cs" />
+    <Compile Include="Language.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

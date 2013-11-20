@@ -38,7 +38,6 @@ namespace translinkupdater
 			this.entryPassword = new global::Gtk.Entry ();
 			this.entryPassword.CanFocus = true;
 			this.entryPassword.Name = "entryPassword";
-			this.entryPassword.Text = global::Mono.Unix.Catalog.GetString ("");
 			this.entryPassword.IsEditable = true;
 			this.entryPassword.Visibility = false;
 			this.entryPassword.InvisibleChar = '•';

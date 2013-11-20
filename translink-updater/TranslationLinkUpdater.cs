@@ -16,7 +16,11 @@ namespace translinkupdater
 		}
 
 		public delegate bool PerformSave (
-			string wikitextBefore,string wikitextAfter);
+			string summary,
+			out string changedSummary,
+			string wikitextBefore,
+			string wikitextAfter,
+			out string changedWikitext);
 
 		public delegate void Log (string message);
 
@@ -26,8 +30,11 @@ namespace translinkupdater
 			log (string.Format (format, args));
 		}
 
-		private static bool saveReturnTrue (string before, string after)
+		private static bool saveReturnTrue (string summary, out string changedSummary,
+		                                    string before, string after, out string changedWikitext)
 		{
+			changedSummary = summary;
+			changedWikitext = after;
 			return true;
 		}
 
@@ -84,7 +91,7 @@ namespace translinkupdater
 			var linksExist = new Dictionary<string, IDictionary<string, bool>> ();
 			foreach (var l in links) {
 				IDictionary<string, bool> pagesExist = null;
-				if (LanguageHasWiki (l.Key)) {
+				if (Language.HasWiki (l.Key)) {
 					try {
 						pagesExist = Api.PagesExist (l.Key, l.Value);
 					} catch (WebException e) {
@@ -107,15 +114,20 @@ namespace translinkupdater
 
 			// Update the pages and save them
 			foreach (var page in pages) {
-				string summary;
-				string wikitext;
+				string proposedSummary;
+				string proposedWikitext;
 				var oldWikitext = page.Text;
 				if (UpdateTranslations (
 						oldWikitext,
 						linksExist,
-						out wikitext,
-						out summary)) {
-					if (saveCallback (oldWikitext, wikitext)) {
+						out proposedWikitext,
+						out proposedSummary)) {
+					string summary;
+					string wikitext;
+
+					if (saveCallback (
+							proposedSummary, out summary,
+							oldWikitext, proposedWikitext, out wikitext)) {
 						page.Text = wikitext;
 
 						Api.SavePage (
@@ -126,9 +138,13 @@ namespace translinkupdater
 						         page.Title,
 						         summary);
 					} else {
-						LogWrite (log, "Doesn't need update: {0}",
-						          page.Title);
+						LogWrite (log, "Chose not to save {0} ({1})",
+						         page.Title,
+						         summary);
 					}
+				} else {
+					LogWrite (log, "Doesn't need update: {0}",
+					          page.Title);
 				}
 			}
 		}
@@ -139,76 +155,117 @@ namespace translinkupdater
 			out string newWikitext,
 			out string summary)
 		{
-			var updatedSections = new List<Section> ();
+			var sections = new List<Section> ();
 			var lastEnd = 0;
-			foreach (var t in GetTranslations(wikitext)) {
-				// Add the previous, non-translation section
-				updatedSections.Add (new Section (wikitext, lastEnd, t.Start - lastEnd));
-				t.Exists = linksExist [t.LangCode] [t.Title];
-				updatedSections.Add (t);
-				lastEnd = t.End;
+			var summaryParts = new SortedSet<string> ();
+
+			foreach (var s in GetTranslationSections(wikitext)) {
+				sections.Add (new Section (wikitext, lastEnd, s.Start - lastEnd));
+				FormatTranslationSection (s, summaryParts);
+				UpdateTranslations (s, linksExist, summaryParts);
+				sections.Add (s);
+				lastEnd = s.End;
 			}
-			updatedSections.Add (new Section (wikitext, lastEnd, wikitext.Length - lastEnd));
-			newWikitext = string.Join ("", updatedSections);
-			if (newWikitext != wikitext) {
-				summary = "uppdaterar {{ö}}";
+			sections.Add (new Section (wikitext, lastEnd, wikitext.Length - lastEnd));
+			if (summaryParts.Count > 0) {
+				newWikitext = string.Join ("", sections);
+				summary = string.Join ("; ", summaryParts);
 				return true;
 			} else {
+				newWikitext = wikitext;
 				summary = null;
 				return false;
 			}
 		}
 
-		private static IDictionary<string, string>LanguagesByCode = null;
-		private static IDictionary<string, string>LanguagesByName = null;
-		private static ISet<string>LanguagesWithWiki = null;
-
-		public static bool LanguageHasWiki (string langCode)
+		protected static void FormatTranslationSection (Section section, ISet<string> summary)
 		{
-			if (LanguagesWithWiki == null) {
-				var map = Api.Get ("action=query&meta=siteinfo&siprop=interwikimap&sifilteriw=local");
-				LanguagesWithWiki = new SortedSet<string> ();
+			if (section.Text.IndexOf ("{{topp") != -1) {
+				section.Text = Regex.Replace (section.Text, @"\{\{(topp[^\}]*|mitt|botten)\}\}", "{{ö-$1}}");
+				summary.Add ("{{topp}} > {{ö-topp}}");
+			}
+			if (section.Text.IndexOf ("\n*:") != -1) {
+				section.Text = section.Text.Replace ("\n*:", "\n**");
+				summary.Add ("underspråk med **");
+			}
+			if (section.Text.IndexOf ("\n:*") != -1) {
+				section.Text = section.Text.Replace ("\n:*", "\n**");
+				summary.Add ("underspråk med **");
+			}
+			if (section.Text.IndexOf ("\n;") != -1) {
+				var lines = section.Text.Split ('\n');
+				var startedAt = -1;
+				for (var i = 0; i < lines.Length; i++) {
+					// end previous section
+					if (startedAt != -1 && !lines [i].StartsWith ("*")) {
+						InsertMidBottom (lines, startedAt, i);
+						startedAt = -1;
+					}
 
-				foreach (var iw in (IEnumerable<JToken>)map["query"]["interwikimap"]) {
-					if ("https://" + iw ["prefix"] + ".wiktionary.org/wiki/$1" ==
-						"" + iw ["url"]) {
-						LanguagesWithWiki.Add ((string)iw ["prefix"]);
+					// start new section
+					if (lines [i].StartsWith (";")) {
+						lines [i] = "{{ö-topp|" + lines [i].Substring (1) + "}}";
+						startedAt = i;
 					}
 				}
+				section.Text = string.Join ("\n", lines);
+				summary.Add ("använd {{ö-topp}}");
 			}
-			return LanguagesWithWiki.Contains (langCode);
-
-		}
-
-		public static string GetLanguageCode (string langName)
-		{
-			if (LanguagesByName == null)
-				InitLanguages ();
-			return LanguagesByName [langName];
-		}
-
-		public static string GetLanguageName (string langCode)
-		{
-			if (LanguagesByCode == null)
-				InitLanguages ();
-			return LanguagesByCode [langCode];
-		}
-
-		private static void InitLanguages ()
-		{
-			var wikitext = Api.GetPage ("Wiktionary:Stilguide/Språknamn").Text;
-			LanguagesByCode = new Dictionary<string, string> ();
-			LanguagesByName = new Dictionary<string, string> ();
-			foreach (Match match in Regex.Matches (wikitext, @"\n\{\{språk\|([^\|]+)\|([^\|]+)\|")) {
-				LanguagesByCode.Add (
-					match.Groups [2].Captures [0].Value,
-					match.Groups [1].Captures [0].Value
-				);
-				LanguagesByName.Add (
-					match.Groups [1].Captures [0].Value,
-					match.Groups [2].Captures [0].Value
-				);
+			if (section.Text.IndexOf ("{{ö-topp") == -1) {
+				var lines = section.Text.Split ('\n');
+				var startedAt = -1;
+				var i = 0;
+				for (; i < lines.Length; i++) {
+					if (startedAt == -1 && lines [i].StartsWith ("*")) {
+						lines [i] = "{{ö-topp}}\n" + lines [i];
+						startedAt = i;
+					} else if (startedAt != -1 && !lines [i].StartsWith ("*")) {
+						// only insert one - won't know what to do with broken lists anyway
+						break;
+					}
+				}
+				InsertMidBottom (lines, startedAt - 1, i);
+				section.Text = string.Join ("\n", lines);
+				summary.Add ("använd {{ö-topp}}");
 			}
+		}
+
+		private static void UpdateTranslations (
+			Section section,
+			Dictionary<string, IDictionary<string, bool>> linksExist,
+			ISet<string> summary)
+		{
+			var sections = new List<Section> ();
+			var lastEnd = 0;
+			var wikitext = section.Text;
+			foreach (var t in GetTranslations(new Section(wikitext))) {
+				// Add the previous, non-translation section
+				sections.Add (new Section (wikitext, lastEnd, t.Start - lastEnd));
+				t.Exists = linksExist [t.LangCode] [t.Title];
+				sections.Add (t);
+				lastEnd = t.End;
+			}
+			sections.Add (new Section (wikitext, lastEnd, wikitext.Length - lastEnd));
+
+			if (lastEnd != 0) {
+				section.Text = string.Join ("", sections);
+				if (wikitext != section.Text)
+					summary.Add ("uppdaterar {{ö}}");
+
+			}
+		}
+
+		private static void InsertMidBottom (string[] lines, int beforeList, int afterList)
+		{
+			if (beforeList < 0)
+				return;
+			for (var i = beforeList + (afterList - beforeList) / 2; i <= afterList; i++) {
+				if (i + 1 == afterList || !lines [i + 1].StartsWith ("**")) {
+					lines [i] += "\n{{ö-mitt}}";
+					break;
+				}
+			}
+			lines [afterList - 1] += "\n{{ö-botten}}";
 		}
 
 		public static IEnumerable<Translation> GetTranslations (string wikitext)
@@ -222,42 +279,35 @@ namespace translinkupdater
 
 		private static IEnumerable<Translation> GetTranslations (Section section)
 		{
-			/*
-			 * TODO find stuff that shouldn't be in the translations section:
-			 * \n;
-			 * \n:
-			 * \n*:
-			 * {{topp
-			 * 1=
-			 * 2=
-			 */
 			string lang = null;
 			int nextStart = section.Start;
+			var wikitext = section.Text;
 
-			foreach (var line in section.Text.Split('\n')) {
+			foreach (var line in wikitext.Split('\n')) {
 				int position = nextStart;
 				nextStart += line.Length + 1; // +1 for \n
+
 				if (!line.StartsWith ("*") || line.IndexOf (':') == -1)
 					continue;
-				if (!line.StartsWith ("**")) {
+				if (!line.StartsWith ("**") && !line.StartsWith ("*:") && !line.StartsWith (":*")) {
 					var langName = line.Substring (1, line.IndexOf (':') - 1);
-					lang = GetLanguageCode (langName);
+					lang = Language.GetCode (langName);
 				}
 				if (lang == null) {
 					Console.WriteLine ("No language found for " + line);
 				}
 
-				// {{ö|..|XXX}} or {{ö-|..|XXX}} or [[XXX]]
+				// {{ö|..|XXX}} or {{ö+|..|XXX}} or [[XXX]]
 				var reAdditionalTemplate = @"( ?\{\{(m|f|mf|c|u|n|p|d|s)\}\})?";
 				var matches = Regex.Matches (
 					line,
-					// template matches
-					@"\{\{ö\-?\|[^\|]*\|" +
+					// template matches: {{ö|en|translation}}
+					@"\{\{ö[\-\+]?\|[^\|]*\|" +
 					@"([^\|\}]*)" + // 1 (word)
 					@"([^\}]*)\}\}" + // 2 (additional params)
 					reAdditionalTemplate + // 3, 4 (additional template)
 					@"|" +
-				// link matches
+				// link matches: [[translation]]
 					@"\[\[" +
 					@"([^\|\]]+)" + // 5 (word)
 					@"\]\]" +
@@ -277,16 +327,15 @@ namespace translinkupdater
 						// raw link
 						word = m.Groups [5].Captures [0].Value;
 						if (m.Groups [7].Captures.Count > 0)
-							additionalParams += m.Groups [4].Captures [0].Value;
-
+							additionalParams += m.Groups [7].Captures [0].Value;
 					}
-					if (additionalParams == "|c")
-						additionalParams = "|u";
+					additionalParams = additionalParams.TrimStart('|');
 
 					var translation = new Translation (
 						langCode: lang,
 						title: word,
-						additionalParams: additionalParams,
+						additionalParams: additionalParams == "" ? null
+							: additionalParams.Split (new char[]{'|'}),
 						allText: section.AllText,
 						start: position + m.Index,
 						length: m.Length,
@@ -294,63 +343,6 @@ namespace translinkupdater
 
 					yield return translation;
 				}
-			}
-		}
-		public class Translation : Section
-		{
-			private string _langCode;
-			private string _title;
-			private string _additionalParams;
-
-			public bool Exists {
-				get;
-				set;
-			}
-
-			private Match _match;
-
-			public Match Match {
-				get { return _match; }
-			}
-
-			public string LangCode {
-				get { return _langCode; }
-			}
-
-			public string Title {
-				get { return _title; }
-			}
-
-			public string AdditionalParams {
-				get { return _additionalParams; }
-			}
-
-			public Translation (
-				string langCode, string title,
-				string additionalParams,
-				string allText,
-				int start, int length,
-				Match match,
-				bool exists = true)
-				: base(allText, start, length)
-			{
-				_langCode = langCode;
-				_title = title;
-				_additionalParams = additionalParams;
-				_match = match;
-				Exists = exists;
-			}
-
-			override public string ToString ()
-			{
-				return string.Join ("", new string[] {
-					Exists ? "{{ö|" : "{{ö-|",
-					_langCode, "|",
-					_title,
-					_additionalParams,
-					"}}"
-				}
-				);
 			}
 		}
 
@@ -377,53 +369,6 @@ namespace translinkupdater
 			return res;
 		}
 
-		public class Section
-		{
-			private string _allText;
-			private int _start, _length;
-
-			public string AllText {
-				get { return _allText; }
-			}
-
-			public string Text {
-				get {
-					if (_length == 0)
-						return "";
-					else
-						return _allText.Substring (_start, _length);
-				}
-			}
-
-			public int Start {
-				get { return _start; }
-			}
-
-			public int End {
-				get { return _start + _length; }
-			}
-
-			public int Length {
-				get { return _length; }
-			}
-
-			public Section (string allText, int start, int length)
-			{
-				if (start + length > allText.Length) {
-					throw new IndexOutOfRangeException ("start + length > allText.length");
-				}
-				_allText = allText;
-				_start = start;
-				_length = length;
-			}
-
-			override public string ToString ()
-			{
-				return Text;
-			}
-
-
-		}
 	}
 }
 

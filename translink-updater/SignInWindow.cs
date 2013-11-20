@@ -8,7 +8,7 @@ namespace translinkupdater
 		public SignInWindow ()
 		{
 			this.Build ();
-			buttonOk.GrabFocus();
+			entryPassword.GrabFocus();
 		}
 
 		protected void OnButtonOkClicked (object sender, EventArgs e)
@@ -16,9 +16,9 @@ namespace translinkupdater
 			labelStatus.Text = "Loggar in...";
 			if (Api.SignIn (entryUsername.Text, entryPassword.Text)) {
 				Console.WriteLine("Successfully signed in {0}", Api.SignedInUser);
-				//Api.SavePage("Användare:Skalman/test", "testar lite...", "test");
 				Destroy();
 			} else {
+				Console.WriteLine("Wrong username/password");
 				labelStatus.Text = "Fel användarnamn/lösenord";
 				entryPassword.Text = "";
 				entryPassword.GrabFocus();

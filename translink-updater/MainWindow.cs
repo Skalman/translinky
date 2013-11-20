@@ -33,12 +33,13 @@ public partial class MainWindow: Gtk.Window
 
 	protected void OnBtnUpdateClicked (object sender, EventArgs e)
 	{
-		Console.WriteLine ("signed in as {0}", Api.SignedInUser);
 		if (Api.SignedInUser == null) {
 			var signInWindow = new SignInWindow ();
 			signInWindow.Show ();
 			return;
 		}
+		Console.WriteLine ("signed in as {0}", Api.SignedInUser);
+
 		Thread thread = new Thread (new ThreadStart (Update));
 		thread.Start ();
 		btnUpdate.Sensitive = false;
@@ -50,13 +51,13 @@ public partial class MainWindow: Gtk.Window
 	protected void LogAll (string message, params object[] args)
 	{
 		textviewLog.Buffer.Text += string.Format (message, args) + "\n";
-		Console.WriteLine(message, arg: args);
+		Console.WriteLine (message, arg: args);
 	}
 
 	protected void Log (string message)
 	{
 		textviewLog.Buffer.Text += message + "\n";
-		Console.WriteLine(message);
+		Console.WriteLine (message);
 	}
 
 	protected void Update ()
@@ -77,12 +78,16 @@ public partial class MainWindow: Gtk.Window
 
 	protected volatile string saveCallbackAnswer = null;
 
-	protected bool SaveCallback (string before, string after)
+	protected bool SaveCallback (string summary, out string changedSummary,
+	                             string before, string after, out string changedWikitext)
 	{
+		entrySummary.Text = summary;
+		Console.WriteLine(1);
 		textviewBefore.Buffer.Text = before;
+		Console.WriteLine(2);
 		textviewAfter.Buffer.Text = after;
-		buttonSkip.Sensitive = true;
-		buttonApproveChange.Sensitive = true;
+		Console.WriteLine(3);
+		vboxConfirmEdit.Sensitive = true;
 		buttonSkip.GrabFocus ();
 		saveCallbackAnswer = null;
 
@@ -94,8 +99,10 @@ public partial class MainWindow: Gtk.Window
 		while (saveCallbackAnswer == null) {
 			Thread.Sleep (1000);
 		}
-		buttonSkip.Sensitive = false;
-		buttonApproveChange.Sensitive = false;
+		changedSummary = entrySummary.Text;
+		changedWikitext = textviewAfter.Buffer.Text;
+		vboxConfirmEdit.Sensitive = false;
+		entrySummary.Text = "";
 		textviewBefore.Buffer.Text = "";
 		textviewAfter.Buffer.Text = "";
 		return saveCallbackAnswer == "save";
