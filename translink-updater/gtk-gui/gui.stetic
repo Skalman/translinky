@@ -43,10 +43,13 @@
                 <child>
                   <widget class="Gtk.Table" id="table2">
                     <property name="MemberName" />
-                    <property name="NRows">3</property>
+                    <property name="NRows">4</property>
                     <property name="NColumns">2</property>
                     <property name="RowSpacing">6</property>
                     <property name="ColumnSpacing">6</property>
+                    <child>
+                      <placeholder />
+                    </child>
                     <child>
                       <widget class="Gtk.Button" id="btnUpdate">
                         <property name="MemberName">btnUpdate</property>
@@ -99,10 +102,36 @@
                       </packing>
                     </child>
                     <child>
+                      <widget class="Gtk.CheckButton" id="checkbuttonConfirm">
+                        <property name="MemberName" />
+                        <property name="CanFocus">True</property>
+                        <property name="Label" translatable="yes">Bekräfta före sparning</property>
+                        <property name="Active">True</property>
+                        <property name="DrawIndicator">True</property>
+                        <property name="HasLabel">True</property>
+                        <property name="UseUnderline">True</property>
+                      </widget>
+                      <packing>
+                        <property name="TopAttach">3</property>
+                        <property name="BottomAttach">4</property>
+                        <property name="LeftAttach">1</property>
+                        <property name="RightAttach">2</property>
+                        <property name="AutoSize">True</property>
+                        <property name="XOptions">Fill</property>
+                        <property name="YOptions">Fill</property>
+                        <property name="XExpand">False</property>
+                        <property name="XFill">True</property>
+                        <property name="XShrink">False</property>
+                        <property name="YExpand">False</property>
+                        <property name="YFill">True</property>
+                        <property name="YShrink">False</property>
+                      </packing>
+                    </child>
+                    <child>
                       <widget class="Gtk.Entry" id="entryMax">
                         <property name="MemberName" />
                         <property name="CanFocus">True</property>
-                        <property name="Text" translatable="yes">1</property>
+                        <property name="Text" translatable="yes">10</property>
                         <property name="IsEditable">True</property>
                         <property name="ActivatesDefault">True</property>
                         <property name="InvisibleChar">•</property>
@@ -232,7 +261,7 @@
                             <property name="HeightRequest">50</property>
                             <property name="CanFocus">True</property>
                             <property name="ShowScrollbars">True</property>
-                            <property name="Editable">False</property>
+                            <property name="AcceptsTab">False</property>
                             <property name="Text" translatable="yes" />
                           </widget>
                         </child>
@@ -291,6 +320,7 @@
                                 <property name="CanFocus">True</property>
                                 <property name="ShowScrollbars">True</property>
                                 <property name="Editable">False</property>
+                                <property name="AcceptsTab">False</property>
                                 <property name="Text" translatable="yes" />
                                 <property name="WrapMode">WordChar</property>
                               </widget>
@@ -335,6 +365,7 @@
                                 <property name="HeightRequest">100</property>
                                 <property name="CanFocus">True</property>
                                 <property name="ShowScrollbars">True</property>
+                                <property name="AcceptsTab">False</property>
                                 <property name="Text" translatable="yes" />
                                 <property name="WrapMode">WordChar</property>
                               </widget>

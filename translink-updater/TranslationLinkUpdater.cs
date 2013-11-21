@@ -11,16 +11,15 @@ namespace translinkupdater
 {
 	public class TranslationLinkUpdater
 	{
-		public TranslationLinkUpdater ()
-		{
-		}
-
 		public delegate bool PerformSave (
+			string title,
 			string summary,
 			out string changedSummary,
 			string wikitextBefore,
 			string wikitextAfter,
 			out string changedWikitext);
+
+		public delegate void PageDoneCallback(string title);
 
 		public delegate void Log (string message);
 
@@ -30,7 +29,8 @@ namespace translinkupdater
 			log (string.Format (format, args));
 		}
 
-		private static bool saveReturnTrue (string summary, out string changedSummary,
+		private static bool saveReturnTrue (string title,
+		                                    string summary, out string changedSummary,
 		                                    string before, string after, out string changedWikitext)
 		{
 			changedSummary = summary;
@@ -38,14 +38,21 @@ namespace translinkupdater
 			return true;
 		}
 
+		private static void Noop (string title)
+		{
+		}
+
 		public static void Update (
 			string startAt = "", int maxPages = 10,
 			PerformSave saveCallback = null,
+			PageDoneCallback pageDoneCallback = null,
 			Log logCallback = null)
 		{
-			logCallback ("UPDATE");
+			logCallback ("UPDATE PAGES");
 			if (saveCallback == null)
 				saveCallback = saveReturnTrue;
+			if (pageDoneCallback == null)
+				pageDoneCallback = Noop;
 			if (logCallback == null)
 				logCallback = Console.WriteLine;
 
@@ -60,24 +67,25 @@ namespace translinkupdater
 			foreach (var page in allPages) {
 				pages.Add (page);
 				if (pages.Count == step) {
-					UpdateBatch (pages, saveCallback, logCallback);
+					UpdateBatch (pages, saveCallback, pageDoneCallback, logCallback);
 					pages.Clear ();
 				}
 			}
 			if (pages.Count != 0)
-				UpdateBatch (pages, saveCallback, logCallback);
+				UpdateBatch (pages, saveCallback, pageDoneCallback, logCallback);
 		}
 
 		protected static void UpdateBatch (
 			List<Api.Page> pages,
 			PerformSave saveCallback,
+			PageDoneCallback pageDoneCallback,
 			Log log)
 		{
 			Console.WriteLine ("UPDATE BATCH");
 			// Find links in pages
 			var links = new Dictionary<string, List<string>> ();
 			foreach (var page in pages) {
-				LogWrite (log, "Got page {0}", page.Title);
+				Console.WriteLine ("Got page {0}", page.Title);
 				var translations = GetTranslations (page.Text);
 				foreach (var translation in translations) {
 					if (!links.ContainsKey (translation.LangCode)) {
@@ -126,6 +134,7 @@ namespace translinkupdater
 					string wikitext;
 
 					if (saveCallback (
+							page.Title,
 							proposedSummary, out summary,
 							oldWikitext, proposedWikitext, out wikitext)) {
 						page.Text = wikitext;
@@ -134,18 +143,19 @@ namespace translinkupdater
 							page,
 							summary,
 							nocreate: true);
-						LogWrite (log, "Saved {0} ({1})",
+						LogWrite (log, "{0}: Saved ({1})",
 						         page.Title,
 						         summary);
 					} else {
-						LogWrite (log, "Chose not to save {0} ({1})",
+						LogWrite (log, "{0}: Chose not to save ({1})",
 						         page.Title,
 						         summary);
 					}
 				} else {
-					LogWrite (log, "Doesn't need update: {0}",
+					LogWrite (log, "{0}: Doesn't need update",
 					          page.Title);
 				}
+				pageDoneCallback(page.Title);
 			}
 		}
 

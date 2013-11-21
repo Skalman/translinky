@@ -51,12 +51,14 @@ public partial class MainWindow: Gtk.Window
 	protected void LogAll (string message, params object[] args)
 	{
 		textviewLog.Buffer.Text += string.Format (message, args) + "\n";
+		textviewLog.QueueDraw ();
 		Console.WriteLine (message, arg: args);
 	}
 
 	protected void Log (string message)
 	{
 		textviewLog.Buffer.Text += message + "\n";
+		textviewLog.QueueDraw ();
 		Console.WriteLine (message);
 	}
 
@@ -67,26 +69,45 @@ public partial class MainWindow: Gtk.Window
 				startAt: entryStart.Text,
 				maxPages: int.Parse (entryMax.Text),
 				saveCallback: SaveCallback,
+				pageDoneCallback: PageDoneCallback,
 				logCallback: Log);
 		} catch (ThreadInterruptedException) {
+			entrySummary.Text = "";
+			textviewBefore.Buffer.Text = "";
+			textviewAfter.Buffer.Text = "";
+			vboxConfirmEdit.Sensitive = false;
+
 			Console.WriteLine ("Thread interrupted [no worries]");
 		}
+		Console.WriteLine ("Thread finished");
 		buttonCancel.Sensitive = false;
 		btnUpdate.Sensitive = true;
 		btnUpdate.GrabFocus ();
 	}
 
+	protected void PageDoneCallback (string title)
+	{
+		Console.WriteLine ("In PageDoneCallback {0}", title);
+		entryStart.Text = title;
+		entryStart.QueueDraw ();
+	}
+
 	protected volatile string saveCallbackAnswer = null;
 
-	protected bool SaveCallback (string summary, out string changedSummary,
+	protected bool SaveCallback (string title,
+	                             string summary, out string changedSummary,
 	                             string before, string after, out string changedWikitext)
 	{
+		PageDoneCallback (title);
+		if (!checkbuttonConfirm.Active) {
+			changedSummary = summary;
+			changedWikitext = after;
+			return true;
+		}
+
 		entrySummary.Text = summary;
-		Console.WriteLine(1);
 		textviewBefore.Buffer.Text = before;
-		Console.WriteLine(2);
 		textviewAfter.Buffer.Text = after;
-		Console.WriteLine(3);
 		vboxConfirmEdit.Sensitive = true;
 		buttonSkip.GrabFocus ();
 		saveCallbackAnswer = null;
