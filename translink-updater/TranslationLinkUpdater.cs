@@ -142,7 +142,8 @@ namespace translinkupdater
 						Api.SavePage (
 							page,
 							summary,
-							nocreate: true);
+							nocreate: true,
+							bot: proposedWikitext == wikitext);
 						LogWrite (log, "{0}: Saved ({1})",
 						         page.Title,
 						         summary);
@@ -169,6 +170,9 @@ namespace translinkupdater
 			var lastEnd = 0;
 			var summaryParts = new SortedSet<string> ();
 
+			// Not just translations, but important formatting
+			wikitext = FormatPage(wikitext, summaryParts);
+
 			foreach (var s in GetTranslationSections(wikitext)) {
 				sections.Add (new Section (wikitext, lastEnd, s.Start - lastEnd));
 				FormatTranslationSection (s, summaryParts);
@@ -186,6 +190,16 @@ namespace translinkupdater
 				summary = null;
 				return false;
 			}
+		}
+
+		static string FormatPage (string wikitext, ISet<string> summaryParts)
+		{
+			// Added on many pages by User:Pametzma
+			if (wikitext.IndexOf("----") != -1) {
+				summaryParts.Add("tar bort onödig {{nollpos}} och ----");
+				wikitext = Regex.Replace(wikitext, @"\n+(\{\{nollpos\}\}\n|\-{4,}\n)+\n*", "\n\n");
+			}
+			return wikitext;
 		}
 
 		protected static void FormatTranslationSection (Section section, ISet<string> summary)

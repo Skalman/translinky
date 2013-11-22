@@ -41,24 +41,26 @@ public partial class MainWindow: Gtk.Window
 		Console.WriteLine ("signed in as {0}", Api.SignedInUser);
 
 		Thread thread = new Thread (new ThreadStart (Update));
-		thread.Start ();
 		btnUpdate.Sensitive = false;
 		buttonCancel.Sensitive = true;
 		buttonCancel.GrabFocus ();
 		runningThreads.Add (thread);
+		thread.Start ();
 	}
 
 	protected void LogAll (string message, params object[] args)
 	{
-		textviewLog.Buffer.Text += string.Format (message, args) + "\n";
-		textviewLog.QueueDraw ();
+		Gtk.Application.Invoke (delegate {
+			textviewLog.Buffer.Text += string.Format (message, args) + "\n";
+		});
 		Console.WriteLine (message, arg: args);
 	}
 
 	protected void Log (string message)
 	{
-		textviewLog.Buffer.Text += message + "\n";
-		textviewLog.QueueDraw ();
+		Gtk.Application.Invoke (delegate {
+			textviewLog.Buffer.Text += message + "\n";
+		});
 		Console.WriteLine (message);
 	}
 
@@ -72,24 +74,30 @@ public partial class MainWindow: Gtk.Window
 				pageDoneCallback: PageDoneCallback,
 				logCallback: Log);
 		} catch (ThreadInterruptedException) {
-			entrySummary.Text = "";
-			textviewBefore.Buffer.Text = "";
-			textviewAfter.Buffer.Text = "";
-			vboxConfirmEdit.Sensitive = false;
+			Gtk.Application.Invoke (delegate {
+				entrySummary.Text = "";
+				textviewBefore.Buffer.Text = "";
+				textviewAfter.Buffer.Text = "";
+				vboxConfirmEdit.Sensitive = false;
+			});
 
 			Console.WriteLine ("Thread interrupted [no worries]");
 		}
 		Console.WriteLine ("Thread finished");
-		buttonCancel.Sensitive = false;
-		btnUpdate.Sensitive = true;
-		btnUpdate.GrabFocus ();
+
+		Gtk.Application.Invoke (delegate {
+			buttonCancel.Sensitive = false;
+			btnUpdate.Sensitive = true;
+			btnUpdate.GrabFocus ();
+		});
 	}
 
 	protected void PageDoneCallback (string title)
 	{
 		Console.WriteLine ("In PageDoneCallback {0}", title);
-		entryStart.Text = title;
-		entryStart.QueueDraw ();
+		Gtk.Application.Invoke (delegate {
+			entryStart.Text = title;
+		});
 	}
 
 	protected volatile string saveCallbackAnswer = null;
@@ -105,11 +113,13 @@ public partial class MainWindow: Gtk.Window
 			return true;
 		}
 
-		entrySummary.Text = summary;
-		textviewBefore.Buffer.Text = before;
-		textviewAfter.Buffer.Text = after;
-		vboxConfirmEdit.Sensitive = true;
-		buttonSkip.GrabFocus ();
+		Gtk.Application.Invoke(delegate {
+			entrySummary.Text = summary;
+			textviewBefore.Buffer.Text = before;
+			textviewAfter.Buffer.Text = after;
+			vboxConfirmEdit.Sensitive = true;
+			buttonSkip.GrabFocus ();
+		});
 		saveCallbackAnswer = null;
 
 		/* 
@@ -122,10 +132,12 @@ public partial class MainWindow: Gtk.Window
 		}
 		changedSummary = entrySummary.Text;
 		changedWikitext = textviewAfter.Buffer.Text;
-		vboxConfirmEdit.Sensitive = false;
-		entrySummary.Text = "";
-		textviewBefore.Buffer.Text = "";
-		textviewAfter.Buffer.Text = "";
+		Gtk.Application.Invoke (delegate {
+			vboxConfirmEdit.Sensitive = false;
+			entrySummary.Text = "";
+			textviewBefore.Buffer.Text = "";
+			textviewAfter.Buffer.Text = "";
+		});
 		return saveCallbackAnswer == "save";
 	}
 

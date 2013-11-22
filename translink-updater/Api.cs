@@ -160,13 +160,15 @@ namespace translinkupdater
 		public static void SavePage (
 			Page page,
 			string summary,
-			bool nocreate=false)
+			bool nocreate=false,
+			bool bot=true)
 		{
 			SavePage (
 				title: page.Title,
 				wikitext: page.Text,
 				summary: summary,
 				nocreate: nocreate,
+				bot: bot,
 				timestamp: page.Timestamp);
 		}
 
@@ -175,6 +177,7 @@ namespace translinkupdater
 			string wikitext,
 			string summary,
 			bool nocreate=false,
+			bool bot=true,
 			string timestamp=null)
 		{
 			if (EditToken == null) {
@@ -190,7 +193,7 @@ namespace translinkupdater
 					{nocreate ? "nocreate" : "", ""},
 					{"assert", "user"},
 					{"basetimestamp", timestamp},
-					{"bot", ""},
+					{bot ? "bot" : "", ""},
 					{"token", EditToken},
 				},
 				showAllData: true,
