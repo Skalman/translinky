@@ -19,7 +19,7 @@ namespace translinkupdater
 			string wikitextAfter,
 			out string changedWikitext);
 
-		public delegate void PageDoneCallback(string title);
+		public delegate void PageDoneCallback (string title);
 
 		public delegate void Log (string message);
 
@@ -56,7 +56,7 @@ namespace translinkupdater
 			if (logCallback == null)
 				logCallback = Console.WriteLine;
 
-			var step = 20;
+			var step = 50;
 			var allPages = Api.PagesInCategory (
 				"Svenska/Alla uppslag",
 				ns: 0,
@@ -94,6 +94,8 @@ namespace translinkupdater
 					links [translation.LangCode].Add (translation.Title);
 				}
 			}
+
+			LogWrite (log, "See whether pages exist on {0} wiki(s)...", links.Count);
 
 			// Check whether the pages exist
 			var linksExist = new Dictionary<string, IDictionary<string, bool>> ();
@@ -156,7 +158,7 @@ namespace translinkupdater
 					LogWrite (log, "{0}: Doesn't need update",
 					          page.Title);
 				}
-				pageDoneCallback(page.Title);
+				pageDoneCallback (page.Title);
 			}
 		}
 
@@ -171,7 +173,7 @@ namespace translinkupdater
 			var summaryParts = new SortedSet<string> ();
 
 			// Not just translations, but important formatting
-			wikitext = FormatPage(wikitext, summaryParts);
+			wikitext = FormatPage (wikitext, summaryParts);
 
 			foreach (var s in GetTranslationSections(wikitext)) {
 				sections.Add (new Section (wikitext, lastEnd, s.Start - lastEnd));
@@ -195,9 +197,9 @@ namespace translinkupdater
 		static string FormatPage (string wikitext, ISet<string> summaryParts)
 		{
 			// Added on many pages by User:Pametzma
-			if (wikitext.IndexOf("----") != -1) {
-				summaryParts.Add("tar bort onödig {{nollpos}} och ----");
-				wikitext = Regex.Replace(wikitext, @"\n+(\{\{nollpos\}\}\n|\-{4,}\n)+\n*", "\n\n");
+			if (wikitext.IndexOf ("----") != -1) {
+				summaryParts.Add ("tar bort onödig {{nollpos}} och ----");
+				wikitext = Regex.Replace (wikitext, @"\n+(\{\{nollpos\}\}\n|\-{4,}\n)+\n*", "\n\n");
 			}
 			return wikitext;
 		}
@@ -322,7 +324,7 @@ namespace translinkupdater
 				}
 
 				// {{ö|..|XXX}} or {{ö+|..|XXX}} or [[XXX]]
-				var reAdditionalTemplate = @"( ?\{\{(m|f|mf|c|u|n|p|d|s)\}\})?";
+				var reAdditionalTemplate = @"( ?[\{']{2}(m|f|mf|c|u|n|p|d|s)[\}']{2})?";
 				var matches = Regex.Matches (
 					line,
 					// template matches: {{ö|en|translation}}
@@ -353,7 +355,7 @@ namespace translinkupdater
 						if (m.Groups [7].Captures.Count > 0)
 							additionalParams += m.Groups [7].Captures [0].Value;
 					}
-					additionalParams = additionalParams.TrimStart('|');
+					additionalParams = additionalParams.TrimStart ('|');
 
 					var translation = new Translation (
 						langCode: lang,

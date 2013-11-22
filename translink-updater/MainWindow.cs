@@ -52,7 +52,8 @@ public partial class MainWindow: Gtk.Window
 	{
 		Gtk.Application.Invoke (delegate {
 			textviewLog.Buffer.Text += string.Format (message, args) + "\n";
-		});
+		}
+		);
 		Console.WriteLine (message, arg: args);
 	}
 
@@ -60,7 +61,8 @@ public partial class MainWindow: Gtk.Window
 	{
 		Gtk.Application.Invoke (delegate {
 			textviewLog.Buffer.Text += message + "\n";
-		});
+		}
+		);
 		Console.WriteLine (message);
 	}
 
@@ -79,7 +81,8 @@ public partial class MainWindow: Gtk.Window
 				textviewBefore.Buffer.Text = "";
 				textviewAfter.Buffer.Text = "";
 				vboxConfirmEdit.Sensitive = false;
-			});
+			}
+			);
 
 			Console.WriteLine ("Thread interrupted [no worries]");
 		}
@@ -89,15 +92,19 @@ public partial class MainWindow: Gtk.Window
 			buttonCancel.Sensitive = false;
 			btnUpdate.Sensitive = true;
 			btnUpdate.GrabFocus ();
-		});
+		}
+		);
 	}
 
-	protected void PageDoneCallback (string title)
+	protected void PageDoneCallback (string title, bool addExclamation=true)
 	{
-		Console.WriteLine ("In PageDoneCallback {0}", title);
 		Gtk.Application.Invoke (delegate {
-			entryStart.Text = title;
-		});
+			if (addExclamation)
+				entryStart.Text = title + "!";
+			else
+				entryStart.Text = title;
+		}
+		);
 	}
 
 	protected volatile string saveCallbackAnswer = null;
@@ -106,20 +113,21 @@ public partial class MainWindow: Gtk.Window
 	                             string summary, out string changedSummary,
 	                             string before, string after, out string changedWikitext)
 	{
-		PageDoneCallback (title);
+		PageDoneCallback (title, addExclamation: false);
 		if (!checkbuttonConfirm.Active) {
 			changedSummary = summary;
 			changedWikitext = after;
 			return true;
 		}
 
-		Gtk.Application.Invoke(delegate {
+		Gtk.Application.Invoke (delegate {
 			entrySummary.Text = summary;
 			textviewBefore.Buffer.Text = before;
 			textviewAfter.Buffer.Text = after;
 			vboxConfirmEdit.Sensitive = true;
 			buttonSkip.GrabFocus ();
-		});
+		}
+		);
 		saveCallbackAnswer = null;
 
 		/* 
@@ -137,7 +145,8 @@ public partial class MainWindow: Gtk.Window
 			entrySummary.Text = "";
 			textviewBefore.Buffer.Text = "";
 			textviewAfter.Buffer.Text = "";
-		});
+		}
+		);
 		return saveCallbackAnswer == "save";
 	}
 
