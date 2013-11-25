@@ -7,6 +7,7 @@ using System.Text;
 using System.Linq;
 using Newtonsoft.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace translinkupdater
 {
@@ -52,7 +53,7 @@ namespace translinkupdater
 		                           string domain = "https://sv.wiktionary.org",
 		                           bool cookies = false)
 		{
-			var uri = domain + "/w/api.php?format=json&" + parameters;
+			var uri = domain + "/w/api.php?format=json&maxlag=5&" + parameters;
 			Console.WriteLine ("GET {0}", uri);
 
 			var req = PrepareRequest (uri);
@@ -62,7 +63,17 @@ namespace translinkupdater
 				req.CookieContainer = Cookies;
 			}
 
-			return GetResponseJson (req);
+			var json = GetResponseJson (req);
+			if (json ["error"] != null && (string)json ["error"] ["code"] == "maxlag") {
+				Console.WriteLine ("Maxlag: Sleeping for 5 sec...");
+				Thread.Sleep (5000);
+				return Get (
+					parameters: parameters,
+		            domain: domain,
+					cookies: cookies);
+			}
+
+			return json;
 		}
 
 		public static JObject Get (IDictionary<string, string> parameters,
@@ -98,7 +109,7 @@ namespace translinkupdater
 		                            bool cookies = true,
 		                            string uriAppend = null)
 		{
-			var uri = domain + "/w/api.php?format=json";
+			var uri = domain + "/w/api.php?format=json&maxlag=5";
 			if (action != null)
 				uri += "&action=" + action;
 			if (uriAppend != null)
@@ -127,7 +138,20 @@ namespace translinkupdater
 			stream.Write (postData, 0, postData.Length);
 			stream.Close ();
 
-			return GetResponseJson (req);
+			var json = GetResponseJson (req);
+			if (json ["error"] != null && (string)json ["error"] ["code"] == "maxlag") {
+				Console.WriteLine ("Maxlag: Sleeping for 5 sec...");
+				Thread.Sleep (5000);
+				return Post (
+					data: data,
+					domain: domain,
+					action: action,
+					showAllData: showAllData,
+					cookies: cookies,
+					uriAppend : uriAppend);
+			}
+
+			return json;
 		}
 
 		protected static string _signedInUser = null;
