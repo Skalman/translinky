@@ -117,7 +117,7 @@ namespace translinkupdater
 				if (pagesExist == null) {
 					pagesExist = new Dictionary<string, bool> ();
 					foreach (var title in l.Value)
-						pagesExist.Add (title, false);
+						pagesExist [title] = false;
 				}
 				linksExist.Add (l.Key, pagesExist);
 			}
@@ -198,7 +198,7 @@ namespace translinkupdater
 		{
 			// Added on many pages by User:Pametzma
 			if (wikitext.IndexOf ("----") != -1) {
-				summaryParts.Add ("tar bort onödig {{nollpos}} och ----");
+				summaryParts.Add ("ta bort onödig {{nollpos}} och ----");
 				wikitext = Regex.Replace (wikitext, @"\n+(\{\{nollpos\}\}\n|\-{4,}\n)+\n*", "\n\n");
 			}
 			return wikitext;
@@ -207,6 +207,8 @@ namespace translinkupdater
 		protected static void FormatTranslationSection (Section section, ISet<string> summary)
 		{
 			if (section.Text.IndexOf ("{{topp") != -1) {
+				if (section.Text.IndexOf ("{{topp-göm") != -1)
+					section.Text = section.Text.Replace ("{{topp-göm", "{{topp");
 				section.Text = Regex.Replace (section.Text, @"\{\{(topp[^\}]*|mitt|botten)\}\}", "{{ö-$1}}");
 				summary.Add ("{{topp}} > {{ö-topp}}");
 			}
@@ -217,6 +219,18 @@ namespace translinkupdater
 			if (section.Text.IndexOf ("\n:*") != -1) {
 				section.Text = section.Text.Replace ("\n:*", "\n**");
 				summary.Add ("underspråk med **");
+			}
+			if (section.Text.IndexOf ("\n'''") != -1) {
+				section.Text = Regex.Replace (
+					section.Text,
+					@"\n'''([^\n]+?)'''\n\{\{ö\-topp\}\}",
+					"\n{{ö-topp|$1}}");
+				section.Text = Regex.Replace (
+					section.Text,
+					@"\n'''([^\n]+?)'''\n",
+					// pass on to the next step
+					"\n;$1\n");
+				summary.Add ("använd {{ö-topp}}");
 			}
 			if (section.Text.IndexOf ("\n;") != -1) {
 				var lines = section.Text.Split ('\n');
@@ -254,6 +268,101 @@ namespace translinkupdater
 				section.Text = string.Join ("\n", lines);
 				summary.Add ("använd {{ö-topp}}");
 			}
+			EnsureSorted (section, summary);
+			if (Regex.IsMatch (
+					section.Text,
+					@":(\{\{ö|\[\[)|" +
+				@"[ \t]:[ \t]*(\{\{ö|\[\[)"
+			)) {
+				var newText = Regex.Replace (
+					section.Text,
+					@"(\n\*[^:\n\{\[]+)[ \t]*:[ \t]*(\{\{ö|\[\[)",
+					"$1: $2");
+				if (section.Text != newText) {
+					summary.Add ("språknamn+kolon+mellanslag");
+					section.Text = newText;
+				}
+			}
+			if (Language.CorrectMisspellings (section)) {
+				summary.Add ("korrigera språknamn");
+			}
+		}
+
+		static void EnsureSorted (Section section, ISet<string> summary)
+		{
+			var lines = section.Text.Split ('\n');
+			int startedAt = 0;
+			bool sortError = false;
+			bool hasHadSortError = false;
+			string lastLine = null;
+			for (var i = 0; i < lines.Length; i++) {
+				if (lines [i].StartsWith ("{{ö-topp")) {
+					startedAt = i;
+				} else if (lines [i] == "{{ö-botten}}") {
+					if (sortError) {
+						Sort (lines, startedAt, i);
+						hasHadSortError = true;
+					}
+					sortError = false;
+					lastLine = null;
+				} else if (!sortError && lines [i].StartsWith ("*") && !lines [i].StartsWith ("**")) {
+					if (StringComparer.Cmp (lines [i], lastLine) < 0) {
+						sortError = true;
+					}
+					lastLine = lines [i];
+				}
+			}
+			if (hasHadSortError) {
+				summary.Add ("sortera översättningar");
+				lines = Array.ConvertAll (lines, delegate(string str) {
+					return str == null ? "" : str + "\n";
+				}
+				);
+				lines [lines.Length - 1] = lines [lines.Length - 1].TrimEnd ('\n');
+				section.Text = string.Join ("", lines);
+			}
+		}
+
+		static void Sort (string[] lines, int before, int after)
+		{
+			var nullsInFront = 0;
+			// prepare by removing {{ö-mitt}} and combining sublangs
+			for (var i = before + 1; i < after; i++) {
+				if (lines [i] == "{{ö-mitt}}" || lines [i] == "") {
+					lines [i] = null;
+					nullsInFront++;
+				} else if (lines [i].StartsWith ("**")) {
+					lines [i] = lines [i - 1] + "\n" + lines [i];
+					lines [i - 1] = null;
+					nullsInFront++;
+				}
+			}
+
+			Array.Sort (lines, before + 1, after - before - 1, StringComparer.Singleton ());
+
+			before = before + nullsInFront;
+			lines [before + (after - before) / 2] += "\n{{ö-mitt}}";
+		}
+		private class StringComparer : IComparer<string>
+		{
+			private static StringComparer instance = null;
+
+			public static StringComparer Singleton ()
+			{
+				if (instance == null)
+					instance = new StringComparer ();
+				return instance;
+			}
+
+			public static int Cmp (string str1, string str2)
+			{
+				return Singleton ().Compare (str1, str2);
+			}
+
+			public int Compare (string str1, string str2)
+			{
+				return String.CompareOrdinal (str1, str2);
+			}
 		}
 
 		private static void UpdateTranslations (
@@ -267,7 +376,8 @@ namespace translinkupdater
 			foreach (var t in GetTranslations(new Section(wikitext))) {
 				// Add the previous, non-translation section
 				sections.Add (new Section (wikitext, lastEnd, t.Start - lastEnd));
-				t.Exists = linksExist [t.LangCode] [t.Title];
+				var langLinksExist = linksExist [t.LangCode];
+				t.Exists = langLinksExist [t.Title];
 				sections.Add (t);
 				lastEnd = t.End;
 			}
@@ -276,7 +386,7 @@ namespace translinkupdater
 			if (lastEnd != 0) {
 				section.Text = string.Join ("", sections);
 				if (wikitext != section.Text)
-					summary.Add ("uppdaterar {{ö}}");
+					summary.Add ("uppdatera {{ö}}");
 
 			}
 		}
@@ -308,16 +418,22 @@ namespace translinkupdater
 			string lang = null;
 			int nextStart = section.Start;
 			var wikitext = section.Text;
+			if (wikitext.IndexOf ("\n*:") != -1)
+				wikitext = wikitext.Replace ("\n*:", "\n**");
+			if (wikitext.IndexOf ("\n:*") != -1)
+				wikitext = wikitext.Replace ("\n:*", "\n**");
 
-			foreach (var line in wikitext.Split('\n')) {
+			var lines = wikitext.Split ('\n');
+
+			foreach (var line in lines) {
 				int position = nextStart;
 				nextStart += line.Length + 1; // +1 for \n
 
 				if (!line.StartsWith ("*") || line.IndexOf (':') == -1)
 					continue;
-				if (!line.StartsWith ("**") && !line.StartsWith ("*:") && !line.StartsWith (":*")) {
+				if (!line.StartsWith ("**")) {
 					var langName = line.Substring (1, line.IndexOf (':') - 1);
-					lang = Language.GetCode (langName);
+					lang = Language.GetCode (langName.Trim ());
 				}
 				if (lang == null) {
 					Console.WriteLine ("No language found for " + line);
@@ -336,9 +452,10 @@ namespace translinkupdater
 				// link matches: [[translation]]
 					@"\[\[" +
 					@"([^\|\]]+)" + // 5 (word)
+					@"(\|[^\|\]]+)?" + // 6 (link text)
 					@"\]\]" +
 					reAdditionalTemplate
-				); // 6, 7 (additional template)
+				); // 7, 8 (additional template)
 
 				foreach (Match m in matches) {
 					string word;
@@ -352,14 +469,18 @@ namespace translinkupdater
 					} else {
 						// raw link
 						word = m.Groups [5].Captures [0].Value;
-						if (m.Groups [7].Captures.Count > 0)
-							additionalParams += m.Groups [7].Captures [0].Value;
+						if (m.Groups [8].Captures.Count > 0)
+							additionalParams += m.Groups [8].Captures [0].Value;
+						// link text
+						if (m.Groups [6].Captures.Count > 0)
+							additionalParams += "|text="
+								+ m.Groups [6].Captures [0].Value.Substring (1);
 					}
 					additionalParams = additionalParams.TrimStart ('|');
 
 					var translation = new Translation (
-						langCode: lang,
-						title: word,
+						langCode: lang.Trim (' ', '\t', '\u200e'),
+						title: word.Trim (' ', '\t', '\u200e'),
 						additionalParams: additionalParams == "" ? null
 							: additionalParams.Split (new char[]{'|'}),
 						allText: section.AllText,

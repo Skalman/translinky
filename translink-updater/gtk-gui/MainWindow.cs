@@ -123,7 +123,7 @@ public partial class MainWindow
 		this.entryMax = new global::Gtk.Entry ();
 		this.entryMax.CanFocus = true;
 		this.entryMax.Name = "entryMax";
-		this.entryMax.Text = global::Mono.Unix.Catalog.GetString ("10");
+		this.entryMax.Text = global::Mono.Unix.Catalog.GetString ("50");
 		this.entryMax.IsEditable = true;
 		this.entryMax.ActivatesDefault = true;
 		this.entryMax.InvisibleChar = '•';
@@ -139,7 +139,7 @@ public partial class MainWindow
 		this.entryStart = new global::Gtk.Entry ();
 		this.entryStart.CanFocus = true;
 		this.entryStart.Name = "entryStart";
-		this.entryStart.Text = global::Mono.Unix.Catalog.GetString ("fågelbo");
+		this.entryStart.Text = global::Mono.Unix.Catalog.GetString ("blixt");
 		this.entryStart.IsEditable = true;
 		this.entryStart.ActivatesDefault = true;
 		this.entryStart.InvisibleChar = '•';

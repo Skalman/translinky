@@ -53,7 +53,7 @@ namespace translinkupdater
 		                           string domain = "https://sv.wiktionary.org",
 		                           bool cookies = false)
 		{
-			var uri = domain + "/w/api.php?format=json&maxlag=5&" + parameters;
+			var uri = domain + "/w/api.php?format=json&maxlag=2&" + parameters;
 			Console.WriteLine ("GET {0}", uri);
 
 			var req = PrepareRequest (uri);
@@ -109,7 +109,7 @@ namespace translinkupdater
 		                            bool cookies = true,
 		                            string uriAppend = null)
 		{
-			var uri = domain + "/w/api.php?format=json&maxlag=5";
+			var uri = domain + "/w/api.php?format=json&maxlag=2";
 			if (action != null)
 				uri += "&action=" + action;
 			if (uriAppend != null)
@@ -301,28 +301,51 @@ namespace translinkupdater
 			}
 		}
 
-		public static IDictionary<string, bool>PagesExist (string langCode, IEnumerable<string> pages)
+		public static IDictionary<string, bool>PagesExist (
+			string langCode, IList<string> pages,
+			IDictionary<string, bool> addTo = null)
 		{
 			/*
 			if (langCode != "de") {
 				var r = new Dictionary<string,bool> ();
 				foreach (var p in pages) {
-					r.Add (p, false);
+					r [p] = false;
 				}
 				return r;
 			}
-			*/
+			/**/
 			var response = Api.Get (
 				new Dictionary<string, string> {
 					{"action", "query"},
 					{"titles", string.Join("|", pages)}
 				},
-				"https://" + langCode + ".wiktionary.org"
+				"https://" + langCode + ".wiktionary.org",
+				cookies: true
 			);
 			var pageDict = (IDictionary<string, JToken>)response ["query"] ["pages"];
-			var res = new Dictionary<string, bool> ();
+			var res = addTo != null ? addTo : new Dictionary<string, bool> ();
 			foreach (var kv in pageDict) {
 				res.Add ((string)kv.Value ["title"], (string)kv.Value ["missing"] != "");
+			}
+			if (res.Count != pages.Count) {
+				// maybe hit some limit - try again
+				if (res.Count == 0) {
+					throw new Exception (
+						"Can't check whether '" +
+						string.Join ("|", pages) +
+						"' exist on '" +
+						langCode +
+						".wiktionary'"
+					);
+				}
+				var notGottenPages = new List<string> ();
+				foreach (var p in pages) {
+					if (!res.ContainsKey (p)) {
+						notGottenPages.Add (p);
+					}
+				}
+				if (notGottenPages.Count > 0)
+					PagesExist(langCode, notGottenPages, res);
 			}
 			return res;
 		}

@@ -131,7 +131,7 @@
                       <widget class="Gtk.Entry" id="entryMax">
                         <property name="MemberName" />
                         <property name="CanFocus">True</property>
-                        <property name="Text" translatable="yes">10</property>
+                        <property name="Text" translatable="yes">50</property>
                         <property name="IsEditable">True</property>
                         <property name="ActivatesDefault">True</property>
                         <property name="InvisibleChar">•</property>
@@ -156,7 +156,7 @@
                       <widget class="Gtk.Entry" id="entryStart">
                         <property name="MemberName" />
                         <property name="CanFocus">True</property>
-                        <property name="Text" translatable="yes">fågelbo</property>
+                        <property name="Text" translatable="yes">blixt</property>
                         <property name="IsEditable">True</property>
                         <property name="ActivatesDefault">True</property>
                         <property name="InvisibleChar">•</property>

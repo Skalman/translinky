@@ -7,7 +7,43 @@ namespace translinkupdater
 {
 	public class Language
 	{
+		private static IDictionary<string, string>Misspellings = new Dictionary<string, string> () {
+			{"atjehnesiska", "acehnesiska"},
+			{"azerbadjanska", "azerbajdzjanska"},
+			{"bashkiriska", "basjkiriska"},
+			{"dhivehi", "divehi"},
+			{"friulian", "friuliska"},
+			{"friulska", "friuliska"},
+			{"galisiska", "galiciska"},
+			{"indomesiska", "indonesiska"},
+			{"jiddish", "jiddisch"},
+			{"khakas", "khakasiska"},
+			{"kirgisiska", "kirgiziska"},
+			{"komi-syrjänska", "komi"},
+			{"chakassiska", "khakasiska"},
+			{"kazakhiska", "kazakiska"},
+			{"kumykiska", "kumyk"},
+			{"makedoniska", "makedonska"},
+			{"manniska", "manx"},
+			{"moksha", "moksja"},
+			{"nynorsk", "nynorska"},
+			{"panjabi", "punjabi"},
+			{"pitjantjara", "pitjantjatjara"},
+			{"português", "portugisiska"},
+			{"sotho", "sesotho"},
+			{"spanksa", "spanska"},
+			{"tajik", "tadzjikiska"},
+			{"uighur", "uiguriska"},
+			{"ukrainiska", "ukrainska"},
+			{"österikiska", "österikiska"},
+		};
+		private static IDictionary<string, string>UnofficialByName = new Dictionary<string, string> () {
+			{"serbokroatiska", "<!--sh-->"},
 
+			// Ignored or no ISO 639-3 code
+			{"kalmuckiska", ""},
+			{"toki pona", ""},
+		};
 		private static IDictionary<string, string>ByCode = null;
 		private static IDictionary<string, string>ByName = null;
 		private static ISet<string>WithWiki = null;
@@ -33,7 +69,15 @@ namespace translinkupdater
 		{
 			if (ByName == null)
 				Init ();
-			return ByName [langName];
+			string val = null;
+			if (ByName.TryGetValue (langName, out val))
+				return val;
+			else if (Misspellings.TryGetValue (langName, out val))
+				return ByName [val];
+			else if (UnofficialByName.TryGetValue(langName, out val))
+				return val;
+			else
+				throw new Exception("Unrecognized language name '" + langName + "'");
 		}
 
 		public static string GetName (string langCode)
@@ -41,6 +85,24 @@ namespace translinkupdater
 			if (ByCode == null)
 				Init ();
 			return ByCode [langCode];
+		}
+
+		public static bool CorrectMisspellings (Section section)
+		{
+			var newText = section.Text;
+			foreach (var x in Misspellings) {
+				if (newText.IndexOf (x.Key) != -1) {
+					newText = newText.Replace (
+						"\n*" + x.Key + ": ",
+						"\n*" + x.Value + ": ");
+				}
+			}
+			if (newText == section.Text) {
+				return false;
+			} else {
+				section.Text = newText;
+				return true;
+			}
 		}
 
 		private static void Init ()

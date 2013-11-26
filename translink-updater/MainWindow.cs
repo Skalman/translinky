@@ -60,7 +60,7 @@ public partial class MainWindow: Gtk.Window
 	protected void Log (string message)
 	{
 		Gtk.Application.Invoke (delegate {
-			textviewLog.Buffer.Text += message + "\n";
+			textviewLog.Buffer.Text = message + "\n" + textviewLog.Buffer.Text;
 		}
 		);
 		Console.WriteLine (message);
