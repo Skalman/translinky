@@ -12,9 +12,16 @@ namespace translinkupdater
 			{"azerbadjanska", "azerbajdzjanska"},
 			{"bashkiriska", "basjkiriska"},
 			{"dhivehi", "divehi"},
+			{"estländska", "estniska"},
+			{"finskaa", "finska"},
+			{"franka", "franska"},
+			{"french", "franska"},
 			{"friulian", "friuliska"},
 			{"friulska", "friuliska"},
 			{"galisiska", "galiciska"},
+			{"gallego", "galiciska"},
+			{"grekiska, modern", "grekiska"},
+			{"hornjserbsce", "högsorbiska"},
 			{"indomesiska", "indonesiska"},
 			{"jiddish", "jiddisch"},
 			{"khakas", "khakasiska"},
@@ -26,22 +33,38 @@ namespace translinkupdater
 			{"makedoniska", "makedonska"},
 			{"manniska", "manx"},
 			{"moksha", "moksja"},
+			{"nederländiska", "nederländska"},
+			{"nederlänska", "nederländska"},
 			{"nynorsk", "nynorska"},
 			{"panjabi", "punjabi"},
 			{"pitjantjara", "pitjantjatjara"},
 			{"português", "portugisiska"},
+			{"portugusiska", "portugisiska"},
+			{"sardinska", "sardiska"},
+			{"skotsk-gäliska", "skotsk gäliska"},
 			{"sotho", "sesotho"},
+			{"sloveniska", "slovenska"},
 			{"spanksa", "spanska"},
 			{"tajik", "tadzjikiska"},
+			{"turk", "turkiska"},
 			{"uighur", "uiguriska"},
 			{"ukrainiska", "ukrainska"},
+			{"volapük/volapyk", "volapük"},
 			{"österikiska", "österikiska"},
 		};
 		private static IDictionary<string, string>UnofficialByName = new Dictionary<string, string> () {
+			{"akkadiska", "<!--akk-->"},
+			{"elsassiska", "<!--als-->"},
+			{"hettitiska", "<!--hit-->"},
+			{"kinesiska (mandarin)", "<!--zh-->"},
+			{"kiribatiska", "<!--gil-->"},
+			{"nordkurdiska", "<!--kmr-->"},
 			{"serbokroatiska", "<!--sh-->"},
 
 			// Ignored or no ISO 639-3 code
 			{"kalmuckiska", ""},
+			{"lombardiska", ""},
+			{"lågsaxiska", ""},
 			{"toki pona", ""},
 		};
 		private static IDictionary<string, string>ByCode = null;
@@ -74,10 +97,19 @@ namespace translinkupdater
 				return val;
 			else if (Misspellings.TryGetValue (langName, out val))
 				return ByName [val];
-			else if (UnofficialByName.TryGetValue(langName, out val))
+			else if (UnofficialByName.TryGetValue (langName, out val))
 				return val;
+			else if (langName.StartsWith ("{{") && langName.EndsWith ("}}"))
+				return langName.Substring (2, langName.Length - 4);
 			else
-				throw new Exception("Unrecognized language name '" + langName + "'");
+				throw new LanguageException ("Unrecognized language name '" + langName + "'");
+		}
+
+		public class LanguageException : Exception
+		{
+			public LanguageException (string message) : base(message)
+			{
+			}
 		}
 
 		public static string GetName (string langCode)
@@ -97,12 +129,24 @@ namespace translinkupdater
 						"\n*" + x.Value + ": ");
 				}
 			}
+			if (newText.IndexOf ("\n*{{") != -1) {
+				newText = Regex.Replace (
+					newText,
+					@"\n\*\{\{([a-z-]+)\}\}:",
+					new MatchEvaluator (ExpandTemplateCallback)
+				);
+			}
 			if (newText == section.Text) {
 				return false;
 			} else {
 				section.Text = newText;
 				return true;
 			}
+		}
+
+		private static string ExpandTemplateCallback (Match m)
+		{
+			return "\n*" + GetName (m.Groups [1].Captures [0].Value) + ":";
 		}
 
 		private static void Init ()
