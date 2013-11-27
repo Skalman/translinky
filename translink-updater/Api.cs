@@ -220,7 +220,6 @@ namespace translinkupdater
 					{bot ? "bot" : "", ""},
 					{"token", EditToken},
 				},
-				showAllData: true,
 				cookies: true
 			);
 
@@ -271,7 +270,7 @@ namespace translinkupdater
 			public string Text {
 				get {
 					if (_text == null)
-						_text = (string)Json ["revisions"] [0] ["*"];
+						_text = (string)Json ["revisions"] [0] ["*"] + "\n";
 					return _text;
 				}
 				set {
@@ -301,19 +300,43 @@ namespace translinkupdater
 			}
 		}
 
-		public static IDictionary<string, bool>PagesExist (
+		public static IDictionary<string, bool> PagesExist (
 			string langCode, IList<string> pages,
 			IDictionary<string, bool> addTo = null)
 		{
-			/*
-			if (langCode != "de") {
-				var r = new Dictionary<string,bool> ();
-				foreach (var p in pages) {
-					r [p] = false;
+			var res = new Dictionary<string, bool> ();
+			if (pages.Count <= 50) {
+				PagesExistMax50 (langCode, pages, res);
+			} else {
+				for (var i = 0; i < pages.Count; i += 50) {
+					PagesExistMax50(
+						langCode,
+						new List<string>(pages.Skip(i).Take(50)),
+						res);
 				}
-				return r;
+			}
+
+			return res;
+		}
+
+		private static void PagesExistMax50 (
+			string langCode, IList<string> pages,
+			IDictionary<string, bool> addTo)
+		{
+			/*
+			if (langCode != "ml") {
+				foreach (var p in pages) {
+					addTo [p] = false;
+				}
+				return;
 			}
 			/**/
+			if (pages.Count == 1) {
+				// avoid normalizing and rerequesting
+				addTo[pages[0]] = PageExists(langCode, pages[0]);
+				return;
+			}
+
 			var response = Api.Get (
 				new Dictionary<string, string> {
 					{"action", "query"},
@@ -323,31 +346,41 @@ namespace translinkupdater
 				cookies: true
 			);
 			var pageDict = (IDictionary<string, JToken>)response ["query"] ["pages"];
-			var res = addTo != null ? addTo : new Dictionary<string, bool> ();
+
 			foreach (var kv in pageDict) {
-				res.Add ((string)kv.Value ["title"], (string)kv.Value ["missing"] != "");
+				addTo[(string)kv.Value ["title"]] = (string)kv.Value ["missing"] != "";
 			}
-			if (res.Count != pages.Count) {
-				// maybe hit some limit - try again
-				if (res.Count == 0) {
-					throw new Exception (
-						"Can't check whether '" +
-						string.Join ("|", pages) +
-						"' exist on '" +
-						langCode +
-						".wiktionary'"
-					);
+			var normalized = (IList<JToken>)response ["query"] ["normalized"];
+			if (normalized != null) {
+				foreach (var item in normalized) {
+					var from = (string)item ["from"];
+					var to = (string)item ["to"];
+					addTo[from] = addTo [to];
 				}
-				var notGottenPages = new List<string> ();
-				foreach (var p in pages) {
-					if (!res.ContainsKey (p)) {
-						notGottenPages.Add (p);
-					}
-				}
-				if (notGottenPages.Count > 0)
-					PagesExist(langCode, notGottenPages, res);
 			}
-			return res;
+			// Unicode normalization - try again
+			foreach (var p in pages) {
+				if (!addTo.ContainsKey (p)) {
+					addTo.Add(p, PageExists(langCode, p));
+				}
+			}
+		}
+
+		public static bool PageExists (string langCode, string title)
+		{
+			var response = Api.Get (
+				new Dictionary<string, string> {
+					{"action", "query"},
+					{"titles", title}
+				},
+				"https://" + langCode + ".wiktionary.org"
+			);
+			var pageDict = (IDictionary<string, JToken>)response ["query"] ["pages"];
+
+			foreach (var kv in pageDict) {
+				return (string)kv.Value ["missing"] != "";
+			}
+			throw new Exception("Shouldn't be able to reach this");
 		}
 
 		public static IEnumerable<Page>PagesInCategory (
