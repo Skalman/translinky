@@ -24,6 +24,11 @@ namespace translinkupdater
 				entryPassword.GrabFocus();
 			}
 		}
+		protected void OnButtonCancelClicked (object sender, EventArgs e)
+		{
+			Destroy ();
+		}
+
 	}
 }
 

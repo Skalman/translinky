@@ -41,19 +41,25 @@ namespace translinkupdater
 			get { return _length; }
 		}
 
-		public Section (string allText)
+		public string DocumentTitle {
+			get;
+			set;
+		}
+		public Section (string documentTitle, string allText)
 		{
+			DocumentTitle = documentTitle;
 			_allText = allText;
 			_start = 0;
 			_length = allText.Length;
 			_text = allText;
 		}
 
-		public Section (string allText, int start, int length)
+		public Section (string documentTitle, string allText, int start, int length)
 		{
 			if (start + length > allText.Length) {
 				throw new IndexOutOfRangeException ("start + length > allText.length");
 			}
+			DocumentTitle = documentTitle;
 			_allText = allText;
 			_start = start;
 			_length = length;
@@ -125,13 +131,14 @@ namespace translinkupdater
 		}
 
 		public Translation (
+				string documentTitle,
 				string langCode, string title,
 				IList<string> additionalParams,
 				string allText,
 				int start, int length,
 				Match match,
 				bool exists = true)
-				: base(allText, start, length)
+				: base(documentTitle, allText, start, length)
 		{
 			_langCode = langCode;
 			_title = title;

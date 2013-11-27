@@ -85,7 +85,6 @@
                         <property name="Type">TextOnly</property>
                         <property name="Label" translatable="yes">_Avbryt</property>
                         <property name="UseUnderline">True</property>
-                        <signal name="Clicked" handler="OnButtonCancelClicked" />
                       </widget>
                       <packing>
                         <property name="TopAttach">2</property>
@@ -156,7 +155,7 @@
                       <widget class="Gtk.Entry" id="entryStart">
                         <property name="MemberName" />
                         <property name="CanFocus">True</property>
-                        <property name="Text" translatable="yes">blixt</property>
+                        <property name="Text" translatable="yes">hejare</property>
                         <property name="IsEditable">True</property>
                         <property name="ActivatesDefault">True</property>
                         <property name="InvisibleChar">•</property>
@@ -263,6 +262,7 @@
                             <property name="ShowScrollbars">True</property>
                             <property name="AcceptsTab">False</property>
                             <property name="Text" translatable="yes" />
+                            <property name="WrapMode">Word</property>
                           </widget>
                         </child>
                       </widget>
@@ -417,6 +417,7 @@
                     <property name="MemberName" />
                     <property name="CanFocus">True</property>
                     <property name="IsEditable">True</property>
+                    <property name="ActivatesDefault">True</property>
                     <property name="InvisibleChar">•</property>
                   </widget>
                   <packing>
@@ -453,6 +454,7 @@
                 <child>
                   <widget class="Gtk.Button" id="buttonApproveChange">
                     <property name="MemberName" />
+                    <property name="CanDefault">True</property>
                     <property name="CanFocus">True</property>
                     <property name="Type">TextOnly</property>
                     <property name="Label" translatable="yes">_Godkänn</property>
@@ -511,6 +513,7 @@
                 <property name="MemberName" />
                 <property name="CanFocus">True</property>
                 <property name="IsEditable">True</property>
+                <property name="ActivatesDefault">True</property>
                 <property name="Visibility">False</property>
                 <property name="InvisibleChar">•</property>
               </widget>
@@ -536,6 +539,7 @@
                 <property name="CanFocus">True</property>
                 <property name="Text" translatable="yes">Skalbot</property>
                 <property name="IsEditable">True</property>
+                <property name="ActivatesDefault">True</property>
                 <property name="InvisibleChar">•</property>
               </widget>
               <packing>
@@ -638,6 +642,7 @@
             <property name="Type">StockItem</property>
             <property name="StockId">gtk-cancel</property>
             <property name="ResponseId">-6</property>
+            <signal name="Clicked" handler="OnButtonCancelClicked" />
             <property name="label">gtk-cancel</property>
           </widget>
           <packing>

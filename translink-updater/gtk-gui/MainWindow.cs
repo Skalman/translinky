@@ -139,7 +139,7 @@ public partial class MainWindow
 		this.entryStart = new global::Gtk.Entry ();
 		this.entryStart.CanFocus = true;
 		this.entryStart.Name = "entryStart";
-		this.entryStart.Text = global::Mono.Unix.Catalog.GetString ("blixt");
+		this.entryStart.Text = global::Mono.Unix.Catalog.GetString ("hejare");
 		this.entryStart.IsEditable = true;
 		this.entryStart.ActivatesDefault = true;
 		this.entryStart.InvisibleChar = '•';
@@ -208,6 +208,7 @@ public partial class MainWindow
 		this.textviewLog.CanFocus = true;
 		this.textviewLog.Name = "textviewLog";
 		this.textviewLog.AcceptsTab = false;
+		this.textviewLog.WrapMode = ((global::Gtk.WrapMode)(2));
 		this.GtkScrolledWindow.Add (this.textviewLog);
 		this.hbox4.Add (this.GtkScrolledWindow);
 		global::Gtk.Box.BoxChild w13 = ((global::Gtk.Box.BoxChild)(this.hbox4 [this.GtkScrolledWindow]));
@@ -313,6 +314,7 @@ public partial class MainWindow
 		this.entrySummary.CanFocus = true;
 		this.entrySummary.Name = "entrySummary";
 		this.entrySummary.IsEditable = true;
+		this.entrySummary.ActivatesDefault = true;
 		this.entrySummary.InvisibleChar = '•';
 		this.hbox1.Add (this.entrySummary);
 		global::Gtk.Box.BoxChild w27 = ((global::Gtk.Box.BoxChild)(this.hbox1 [this.entrySummary]));
@@ -337,6 +339,7 @@ public partial class MainWindow
 		w29.Position = 0;
 		// Container child hbox5.Gtk.Box+BoxChild
 		this.buttonApproveChange = new global::Gtk.Button ();
+		this.buttonApproveChange.CanDefault = true;
 		this.buttonApproveChange.CanFocus = true;
 		this.buttonApproveChange.Name = "buttonApproveChange";
 		this.buttonApproveChange.UseUnderline = true;
@@ -361,7 +364,6 @@ public partial class MainWindow
 		this.btnUpdate.HasDefault = true;
 		this.Show ();
 		this.DeleteEvent += new global::Gtk.DeleteEventHandler (this.OnDeleteEvent);
-		this.buttonCancel.Clicked += new global::System.EventHandler (this.OnButtonCancelClicked);
 		this.btnUpdate.Clicked += new global::System.EventHandler (this.OnBtnUpdateClicked);
 		this.buttonSkip.Clicked += new global::System.EventHandler (this.OnButtonSkipClicked);
 		this.buttonApproveChange.Clicked += new global::System.EventHandler (this.OnButtonApproveChangeClicked);

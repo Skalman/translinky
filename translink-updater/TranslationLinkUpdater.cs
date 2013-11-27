@@ -56,7 +56,7 @@ namespace translinkupdater
 			if (logCallback == null)
 				logCallback = Console.WriteLine;
 
-			var step = 50;
+			var step = 200;
 			var allPages = Api.PagesInCategory (
 				"Svenska/Alla uppslag",
 				ns: 0,
@@ -86,7 +86,7 @@ namespace translinkupdater
 			var links = new Dictionary<string, List<string>> ();
 			foreach (var page in pages) {
 				Console.WriteLine ("Got page {0}", page.Title);
-				var translations = GetTranslations (page.Text);
+				var translations = GetTranslations (page.Title, page.Text);
 				foreach (var translation in translations) {
 					if (!links.ContainsKey (translation.LangCode)) {
 						links.Add (translation.LangCode, new List<string> ());
@@ -128,6 +128,7 @@ namespace translinkupdater
 				string proposedWikitext;
 				var oldWikitext = page.Text;
 				if (UpdateTranslations (
+						page.Title,
 						oldWikitext,
 						linksExist,
 						out proposedWikitext,
@@ -163,6 +164,7 @@ namespace translinkupdater
 		}
 
 		static bool UpdateTranslations (
+			string title,
 			string wikitext,
 			Dictionary<string, IDictionary<string, bool>> linksExist,
 			out string newWikitext,
@@ -175,14 +177,14 @@ namespace translinkupdater
 			// Not just translations, but important formatting
 			wikitext = FormatPage (wikitext, summaryParts);
 
-			foreach (var s in GetTranslationSections(wikitext)) {
-				sections.Add (new Section (wikitext, lastEnd, s.Start - lastEnd));
+			foreach (var s in GetTranslationSections(title, wikitext)) {
+				sections.Add (new Section (title, wikitext, lastEnd, s.Start - lastEnd));
 				FormatTranslationSection (s, summaryParts);
 				UpdateTranslations (s, linksExist, summaryParts);
 				sections.Add (s);
 				lastEnd = s.End;
 			}
-			sections.Add (new Section (wikitext, lastEnd, wikitext.Length - lastEnd));
+			sections.Add (new Section (title, wikitext, lastEnd, wikitext.Length - lastEnd));
 			if (summaryParts.Count > 0) {
 				newWikitext = string.Join ("", sections);
 				summary = string.Join ("; ", summaryParts);
@@ -198,8 +200,11 @@ namespace translinkupdater
 		{
 			// Added on many pages by User:Pametzma
 			if (wikitext.IndexOf ("----") != -1) {
-				summaryParts.Add ("ta bort onödig {{nollpos}} och ----");
-				wikitext = Regex.Replace (wikitext, @"\n+(\{\{nollpos\}\}\n|\-{4,}\n)+\n*", "\n\n");
+				var newWikitext = Regex.Replace (wikitext, @"\n+(\{\{nollpos\}\}\n|\-{4,}\n)+\n*", "\n\n");
+				if (wikitext != newWikitext) {
+					summaryParts.Add ("ta bort onödig {{nollpos}} och ----");
+					wikitext = newWikitext;
+				}
 			}
 			return wikitext;
 		}
@@ -223,7 +228,7 @@ namespace translinkupdater
 			if (section.Text.IndexOf ("\n'''") != -1) {
 				section.Text = Regex.Replace (
 					section.Text,
-					@"\n'''([^\n]+?)'''\n\{\{ö\-topp\}\}",
+					@"\n'''([^\n]+?)'''\n\{\{ö\-topp\|?\}\}",
 					"\n{{ö-topp|$1}}");
 				section.Text = Regex.Replace (
 					section.Text,
@@ -231,6 +236,12 @@ namespace translinkupdater
 					// pass on to the next step
 					"\n;$1\n");
 				summary.Add ("använd {{ö-topp}}");
+			}
+			if (section.Text.IndexOf ("\n;") != -1 && section.Text.IndexOf ("{{ö-topp") != -1) {
+				section.Text = Regex.Replace (
+					section.Text,
+					@"\n;([^\n]+)\n\{\{ö\-topp\|?\}\}",
+					"\n{{ö-topp|$1}}");
 			}
 			if (section.Text.IndexOf ("\n;") != -1) {
 				var lines = section.Text.Split ('\n');
@@ -260,15 +271,23 @@ namespace translinkupdater
 						lines [i] = "{{ö-topp}}\n" + lines [i];
 						startedAt = i;
 					} else if (startedAt != -1 && !lines [i].StartsWith ("*")) {
+						InsertMidBottom (lines, startedAt - 1, i);
+						section.Text = string.Join ("\n", lines);
+						summary.Add ("använd {{ö-topp}}");
+
 						// only insert one - won't know what to do with broken lists anyway
 						break;
 					}
 				}
-				InsertMidBottom (lines, startedAt - 1, i);
-				section.Text = string.Join ("\n", lines);
-				summary.Add ("använd {{ö-topp}}");
 			}
-			EnsureSorted (section, summary);
+			if (Language.CorrectMisspellings (section)) {
+				summary.Add ("korrigera språknamn");
+			}
+			if (section.Text.IndexOf ("\n* ") != -1 || section.Text.IndexOf ("\n** ") != -1) {
+				section.Text = section.Text.Replace ("\n* ", "\n*");
+				section.Text = section.Text.Replace ("\n** ", "\n**");
+				summary.Add ("ta bort mellanslag före språknamn");
+			}
 			if (Regex.IsMatch (
 					section.Text,
 					@":(\{\{ö|\[\[)|" +
@@ -276,16 +295,14 @@ namespace translinkupdater
 			)) {
 				var newText = Regex.Replace (
 					section.Text,
-					@"(\n\*[^:\n\{\[]+)[ \t]*:[ \t]*(\{\{ö|\[\[)",
+					@"(\n\*[^:\n\{\[]+?)[ \t]*:[ \t]*(\{\{ö|\[\[)",
 					"$1: $2");
 				if (section.Text != newText) {
 					summary.Add ("språknamn+kolon+mellanslag");
 					section.Text = newText;
 				}
 			}
-			if (Language.CorrectMisspellings (section)) {
-				summary.Add ("korrigera språknamn");
-			}
+			EnsureSorted (section, summary);
 		}
 
 		static void EnsureSorted (Section section, ISet<string> summary)
@@ -319,10 +336,20 @@ namespace translinkupdater
 				}
 				);
 				lines [lines.Length - 1] = lines [lines.Length - 1].TrimEnd ('\n');
-				section.Text = string.Join ("", lines);
+				var wikitext = string.Join ("", lines);
+				if (wikitext.IndexOf ("\n:") != -1) {
+					throw new SortException("Refuse to sort because translation section contains '\\n:'");
+				}
+				section.Text = wikitext;
 			}
 		}
 
+		public class SortException : Exception
+		{
+			public SortException (string message) : base(message)
+			{
+			}
+		}
 		static void Sort (string[] lines, int before, int after)
 		{
 			var nullsInFront = 0;
@@ -370,18 +397,19 @@ namespace translinkupdater
 			Dictionary<string, IDictionary<string, bool>> linksExist,
 			ISet<string> summary)
 		{
+			var title = section.DocumentTitle;
 			var sections = new List<Section> ();
 			var lastEnd = 0;
 			var wikitext = section.Text;
-			foreach (var t in GetTranslations(new Section(wikitext))) {
+			foreach (var t in GetTranslations(new Section(title, wikitext))) {
 				// Add the previous, non-translation section
-				sections.Add (new Section (wikitext, lastEnd, t.Start - lastEnd));
+				sections.Add (new Section (title, wikitext, lastEnd, t.Start - lastEnd));
 				var langLinksExist = linksExist [t.LangCode];
 				t.Exists = langLinksExist [t.Title];
 				sections.Add (t);
 				lastEnd = t.End;
 			}
-			sections.Add (new Section (wikitext, lastEnd, wikitext.Length - lastEnd));
+			sections.Add (new Section (title, wikitext, lastEnd, wikitext.Length - lastEnd));
 
 			if (lastEnd != 0) {
 				section.Text = string.Join ("", sections);
@@ -404,9 +432,9 @@ namespace translinkupdater
 			lines [afterList - 1] += "\n{{ö-botten}}";
 		}
 
-		public static IEnumerable<Translation> GetTranslations (string wikitext)
+		public static IEnumerable<Translation> GetTranslations (string title, string wikitext)
 		{
-			foreach (var section in GetTranslationSections(wikitext)) {
+			foreach (var section in GetTranslationSections(title, wikitext)) {
 				foreach (var translation in GetTranslations(section)) {
 					yield return translation;
 				}
@@ -440,7 +468,7 @@ namespace translinkupdater
 				}
 
 				// {{ö|..|XXX}} or {{ö+|..|XXX}} or [[XXX]]
-				var reAdditionalTemplate = @"( ?[\{']{2}(m|f|mf|c|u|n|p|d|s)[\}']{2})?";
+				var reAdditionalTemplate = @"( *[\{']{2}(m|f|mf|c|u|n|p|d|s)[\}']{2})?";
 				var matches = Regex.Matches (
 					line,
 					// template matches: {{ö|en|translation}}
@@ -465,22 +493,37 @@ namespace translinkupdater
 						word = m.Groups [1].Captures [0].Value;
 						additionalParams = m.Groups [2].Captures [0].Value;
 						if (m.Groups [4].Captures.Count > 0)
-							additionalParams += m.Groups [4].Captures [0].Value;
+							additionalParams += "|" + m.Groups [4].Captures [0].Value;
 					} else {
 						// raw link
 						word = m.Groups [5].Captures [0].Value;
 						if (m.Groups [8].Captures.Count > 0)
-							additionalParams += m.Groups [8].Captures [0].Value;
+							additionalParams += "|" + m.Groups [8].Captures [0].Value;
 						// link text
-						if (m.Groups [6].Captures.Count > 0)
-							additionalParams += "|text="
-								+ m.Groups [6].Captures [0].Value.Substring (1);
+						if (m.Groups [6].Captures.Count > 0) {
+							// handle [[fusion|nuclear fusion]],
+							// [[#Engelska|fusion]], [[#Engelska|nuclear fusion]]
+							var skip = false;
+							if (word [0] == '#'
+								&& word.ToLower () == "#" + Language.GetName (lang)) {
+								word = section.DocumentTitle;
+								if ("|" + word == m.Groups [6].Captures [0].Value) {
+									skip = true;
+								}
+							}
+							if (!skip) {
+								additionalParams += "|text="
+									+ m.Groups [6].Captures [0].Value.Substring (1);
+							}
+						}
 					}
 					additionalParams = additionalParams.TrimStart ('|');
+					word = word.Trim (' ', '\t', '\u200e');
 
 					var translation = new Translation (
-						langCode: lang.Trim (' ', '\t', '\u200e'),
-						title: word.Trim (' ', '\t', '\u200e'),
+						documentTitle: section.DocumentTitle,
+						langCode: lang,
+						title: word,
 						additionalParams: additionalParams == "" ? null
 							: additionalParams.Split (new char[]{'|'}),
 						allText: section.AllText,
@@ -493,7 +536,7 @@ namespace translinkupdater
 			}
 		}
 
-		public static List<Section> GetTranslationSections (string wikitext)
+		public static List<Section> GetTranslationSections (string title, string wikitext)
 		{
 			var res = new List<Section> ();
 			for (int end = 0; end < wikitext.Length;) {
@@ -511,7 +554,7 @@ namespace translinkupdater
 					end = wikitext.Length;
 				else
 					end++;
-				res.Add (new Section (wikitext, start, end - start));
+				res.Add (new Section (title, wikitext, start, end - start));
 			}
 			return res;
 		}

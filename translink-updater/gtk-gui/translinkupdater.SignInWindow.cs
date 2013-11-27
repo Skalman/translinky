@@ -39,6 +39,7 @@ namespace translinkupdater
 			this.entryPassword.CanFocus = true;
 			this.entryPassword.Name = "entryPassword";
 			this.entryPassword.IsEditable = true;
+			this.entryPassword.ActivatesDefault = true;
 			this.entryPassword.Visibility = false;
 			this.entryPassword.InvisibleChar = '•';
 			this.table2.Add (this.entryPassword);
@@ -55,6 +56,7 @@ namespace translinkupdater
 			this.entryUsername.Name = "entryUsername";
 			this.entryUsername.Text = global::Mono.Unix.Catalog.GetString ("Skalbot");
 			this.entryUsername.IsEditable = true;
+			this.entryUsername.ActivatesDefault = true;
 			this.entryUsername.InvisibleChar = '•';
 			this.table2.Add (this.entryUsername);
 			global::Gtk.Table.TableChild w3 = ((global::Gtk.Table.TableChild)(this.table2 [this.entryUsername]));
@@ -138,6 +140,7 @@ namespace translinkupdater
 			this.DefaultHeight = 185;
 			this.buttonOk.HasDefault = true;
 			this.Show ();
+			this.buttonCancel.Clicked += new global::System.EventHandler (this.OnButtonCancelClicked);
 			this.buttonOk.Clicked += new global::System.EventHandler (this.OnButtonOkClicked);
 		}
 	}

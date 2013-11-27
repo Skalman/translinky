@@ -36,6 +36,11 @@ public partial class MainWindow: Gtk.Window
 		if (Api.SignedInUser == null) {
 			var signInWindow = new SignInWindow ();
 			signInWindow.Show ();
+			signInWindow.Destroyed += delegate(object sender2, EventArgs e2) {
+				if (Api.SignedInUser != null) {
+					OnBtnUpdateClicked (sender2, e2);
+				}
+			};
 			return;
 		}
 		Console.WriteLine ("signed in as {0}", Api.SignedInUser);
@@ -44,17 +49,16 @@ public partial class MainWindow: Gtk.Window
 		btnUpdate.Sensitive = false;
 		buttonCancel.Sensitive = true;
 		buttonCancel.GrabFocus ();
+		btnUpdate.HasDefault = false;
+		buttonApproveChange.HasDefault = true;
+
 		runningThreads.Add (thread);
 		thread.Start ();
 	}
 
 	protected void LogAll (string message, params object[] args)
 	{
-		Gtk.Application.Invoke (delegate {
-			textviewLog.Buffer.Text += string.Format (message, args) + "\n";
-		}
-		);
-		Console.WriteLine (message, arg: args);
+		Log (string.Format (message, args));
 	}
 
 	protected void Log (string message)
@@ -85,6 +89,10 @@ public partial class MainWindow: Gtk.Window
 			);
 
 			Console.WriteLine ("Thread interrupted [no worries]");
+		} catch (Language.LanguageException ex) {
+			LogAll ("Language exception: {0}", ex.Message);
+		} catch (TranslationLinkUpdater.SortException ex) {
+			LogAll ("Sort exception: {0}", ex.Message);
 		}
 		Console.WriteLine ("Thread finished");
 
@@ -92,6 +100,8 @@ public partial class MainWindow: Gtk.Window
 			buttonCancel.Sensitive = false;
 			btnUpdate.Sensitive = true;
 			btnUpdate.GrabFocus ();
+			btnUpdate.HasDefault = true;
+			buttonApproveChange.HasDefault = false;
 		}
 		);
 	}
@@ -125,7 +135,7 @@ public partial class MainWindow: Gtk.Window
 			textviewBefore.Buffer.Text = before;
 			textviewAfter.Buffer.Text = after;
 			vboxConfirmEdit.Sensitive = true;
-			buttonSkip.GrabFocus ();
+			entrySummary.GrabFocus();
 		}
 		);
 		saveCallbackAnswer = null;
@@ -136,7 +146,7 @@ public partial class MainWindow: Gtk.Window
 		 */
 
 		while (saveCallbackAnswer == null) {
-			Thread.Sleep (1000);
+			Thread.Sleep (300);
 		}
 		changedSummary = entrySummary.Text;
 		changedWikitext = textviewAfter.Buffer.Text;
