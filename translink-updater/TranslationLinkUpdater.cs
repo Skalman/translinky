@@ -56,7 +56,7 @@ namespace translinkupdater
 			if (logCallback == null)
 				logCallback = Console.WriteLine;
 
-			var step = 200;
+			var step = 250;
 			var allPages = Api.PagesInCategory (
 				"Svenska/Alla uppslag",
 				ns: 0,
@@ -156,7 +156,7 @@ namespace translinkupdater
 						         summary);
 					}
 				} else {
-					LogWrite (log, "{0}: Doesn't need update",
+					LogWrite (log, "{0}: No update",
 					          page.Title);
 				}
 				pageDoneCallback (page.Title);
@@ -211,6 +211,10 @@ namespace translinkupdater
 
 		protected static void FormatTranslationSection (Section section, ISet<string> summary)
 		{
+			if (section.Text.IndexOf (" \n") != -1 || section.Text.IndexOf ("\t\n") != -1) {
+				section.Text = Regex.Replace (section.Text, @"[ \t]+\n", "\n");
+				summary.Add ("-whitespace");
+			}
 			if (section.Text.IndexOf ("{{topp") != -1) {
 				if (section.Text.IndexOf ("{{topp-göm") != -1)
 					section.Text = section.Text.Replace ("{{topp-göm", "{{topp");
@@ -224,6 +228,33 @@ namespace translinkupdater
 			if (section.Text.IndexOf ("\n:*") != -1) {
 				section.Text = section.Text.Replace ("\n:*", "\n**");
 				summary.Add ("underspråk med **");
+			}
+			if (section.Text.IndexOf ("\n**bokmål:") != -1 || section.Text.IndexOf ("\n**nynorska:") != -1) {
+				var newText = section.Text;
+				// Two sub-languages
+				newText = Regex.Replace (
+					newText,
+					@"\n" +
+					@"\*(bokmål|norska):\n" +
+					@"\*\*(bokmål|nynorska): ([^\n]+)\n" +
+					@"\*\*(bokmål|nynorska): ([^\n]+)\n",
+					"\n" +
+					"*$2: $3\n" +
+					"*$4: $5\n"
+				);
+				// Two sub-languages
+				newText = Regex.Replace (
+					newText,
+					@"\n" +
+					@"\*(bokmål|norska):\n" +
+					@"\*\*(bokmål|nynorska): ([^\n]+)\n",
+					"\n" +
+					"*$2: $3\n"
+				);
+				if (newText != section.Text) {
+					section.Text = newText;
+					summary.Add ("fixa norska");
+				}
 			}
 			if (section.Text.IndexOf ("\n'''") != -1) {
 				section.Text = Regex.Replace (
@@ -338,7 +369,7 @@ namespace translinkupdater
 				lines [lines.Length - 1] = lines [lines.Length - 1].TrimEnd ('\n');
 				var wikitext = string.Join ("", lines);
 				if (wikitext.IndexOf ("\n:") != -1) {
-					throw new SortException("Refuse to sort because translation section contains '\\n:'");
+					throw new SortException ("Refuse to sort because translation section contains '\\n:'");
 				}
 				section.Text = wikitext;
 			}
