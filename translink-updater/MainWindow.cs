@@ -93,6 +93,8 @@ public partial class MainWindow: Gtk.Window
 			LogAll ("Language exception: {0}", ex.Message);
 		} catch (TranslationLinkUpdater.SortException ex) {
 			LogAll ("Sort exception: {0}", ex.Message);
+		} catch (Api.NotLoggedInException) {
+			Log ("Abort: Not logged in!");
 		}
 		Console.WriteLine ("Thread finished");
 

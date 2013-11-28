@@ -223,10 +223,32 @@ namespace translinkupdater
 				cookies: true
 			);
 
+			if (editResponse ["error"] != null && (string)editResponse ["error"] ["code"] == "badtoken") {
+				var loggedInInfo = Get ("action=query&meta=userinfo&uiprop=groups", cookies: true);
+				if (loggedInInfo ["query"] ["userinfo"] ["anon"] != null) {
+					_signedInUser = null;
+					EditToken = null;
+					throw new NotLoggedInException ();
+				} else {
+					throw new Exception (
+						"Logged in as " +
+						loggedInInfo ["query"] ["userinfo"] ["name"] +
+						" but has invalid token."
+					);
+				}
+			}
+
 			if ((string)editResponse ["edit"] ["result"] == "Success") {
 				return true;
 			} else {
 				return false;
+			}
+		}
+
+		public class NotLoggedInException : Exception
+		{
+			public NotLoggedInException () : base()
+			{
 			}
 		}
 
@@ -309,9 +331,9 @@ namespace translinkupdater
 				PagesExistMax50 (langCode, pages, res);
 			} else {
 				for (var i = 0; i < pages.Count; i += 50) {
-					PagesExistMax50(
+					PagesExistMax50 (
 						langCode,
-						new List<string>(pages.Skip(i).Take(50)),
+						new List<string> (pages.Skip (i).Take (50)),
 						res);
 				}
 			}
@@ -333,7 +355,7 @@ namespace translinkupdater
 			/**/
 			if (pages.Count == 1) {
 				// avoid normalizing and rerequesting
-				addTo[pages[0]] = PageExists(langCode, pages[0]);
+				addTo [pages [0]] = PageExists (langCode, pages [0]);
 				return;
 			}
 
@@ -348,20 +370,20 @@ namespace translinkupdater
 			var pageDict = (IDictionary<string, JToken>)response ["query"] ["pages"];
 
 			foreach (var kv in pageDict) {
-				addTo[(string)kv.Value ["title"]] = (string)kv.Value ["missing"] != "";
+				addTo [(string)kv.Value ["title"]] = (string)kv.Value ["missing"] != "";
 			}
 			var normalized = (IList<JToken>)response ["query"] ["normalized"];
 			if (normalized != null) {
 				foreach (var item in normalized) {
 					var from = (string)item ["from"];
 					var to = (string)item ["to"];
-					addTo[from] = addTo [to];
+					addTo [from] = addTo [to];
 				}
 			}
 			// Unicode normalization - try again
 			foreach (var p in pages) {
 				if (!addTo.ContainsKey (p)) {
-					addTo.Add(p, PageExists(langCode, p));
+					addTo.Add (p, PageExists (langCode, p));
 				}
 			}
 		}
@@ -380,7 +402,7 @@ namespace translinkupdater
 			foreach (var kv in pageDict) {
 				return (string)kv.Value ["missing"] != "";
 			}
-			throw new Exception("Shouldn't be able to reach this");
+			throw new Exception ("Shouldn't be able to reach this");
 		}
 
 		public static IEnumerable<Page>PagesInCategory (
