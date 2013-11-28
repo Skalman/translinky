@@ -364,6 +364,7 @@ public partial class MainWindow
 		this.btnUpdate.HasDefault = true;
 		this.Show ();
 		this.DeleteEvent += new global::Gtk.DeleteEventHandler (this.OnDeleteEvent);
+		this.buttonCancel.Clicked += new global::System.EventHandler (this.OnButtonCancelClicked);
 		this.btnUpdate.Clicked += new global::System.EventHandler (this.OnBtnUpdateClicked);
 		this.buttonSkip.Clicked += new global::System.EventHandler (this.OnButtonSkipClicked);
 		this.buttonApproveChange.Clicked += new global::System.EventHandler (this.OnButtonApproveChangeClicked);

@@ -85,6 +85,7 @@
                         <property name="Type">TextOnly</property>
                         <property name="Label" translatable="yes">_Avbryt</property>
                         <property name="UseUnderline">True</property>
+                        <signal name="Clicked" handler="OnButtonCancelClicked" />
                       </widget>
                       <packing>
                         <property name="TopAttach">2</property>
