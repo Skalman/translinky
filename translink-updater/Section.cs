@@ -122,6 +122,7 @@ namespace translinkupdater
 						} else if (p.StartsWith ("tr=")) {
 							_additionalParams [i] = "trans=" + p.Substring (3);
 						} else if (p.StartsWith ("ö=")) {
+							_additionalParams = new List<string>(_additionalParams);
 							_additionalParams.RemoveAt (i);
 						}
 					}
