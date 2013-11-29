@@ -236,8 +236,8 @@ namespace translinkupdater
 					newText,
 					@"\n" +
 					@"\*(bokmål|norska):\n" +
-					@"\*\*(bokmål|nynorska): ([^\n]+)\n" +
-					@"\*\*(bokmål|nynorska): ([^\n]+)\n",
+					@"\*\*(bokmål|nynorska?): ([^\n]+)\n" +
+					@"\*\*(bokmål|nynorska?): ([^\n]+)\n",
 					"\n" +
 					"*$2: $3\n" +
 					"*$4: $5\n"
@@ -247,7 +247,7 @@ namespace translinkupdater
 					newText,
 					@"\n" +
 					@"\*(bokmål|norska):\n" +
-					@"\*\*(bokmål|nynorska): ([^\n]+)\n",
+					@"\*\*(bokmål|nynorska?): ([^\n]+)\n",
 					"\n" +
 					"*$2: $3\n"
 				);
@@ -490,7 +490,16 @@ namespace translinkupdater
 
 				if (!line.StartsWith ("*") || line.IndexOf (':') == -1)
 					continue;
-				if (!line.StartsWith ("**")) {
+				if (line.StartsWith ("**")) {
+					if (line.StartsWith ("**nynorska:")) {
+						// special case which will be handled later either way
+						lang = "nn";
+					} else if (line.StartsWith("**bokmål:")) {
+						lang = "no";
+					} else {
+						// do nothing, use the language from the previous line
+					}
+				} else {
 					var langName = line.Substring (1, line.IndexOf (':') - 1);
 					lang = Language.GetCode (langName.Trim ());
 				}
