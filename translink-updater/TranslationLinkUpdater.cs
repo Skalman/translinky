@@ -43,7 +43,9 @@ namespace translinkupdater
 		}
 
 		public static void Update (
-			string startAt = "", int maxPages = 10,
+			/*string startAt = "",*/
+			IEnumerable<Api.Page> pages,
+			int maxPages = 10,
 			PerformSave saveCallback = null,
 			PageDoneCallback pageDoneCallback = null,
 			Log logCallback = null)
@@ -56,23 +58,18 @@ namespace translinkupdater
 			if (logCallback == null)
 				logCallback = Console.WriteLine;
 
-			var step = 250;
-			var allPages = Api.PagesInCategory (
-				"Svenska/Alla uppslag",
-				ns: 0,
-				step: step,
-				maxPages: maxPages,
-				startAt: startAt);
-			var pages = new List<Api.Page> ();
-			foreach (var page in allPages) {
-				pages.Add (page);
-				if (pages.Count == step) {
-					UpdateBatch (pages, saveCallback, pageDoneCallback, logCallback);
-					pages.Clear ();
+			var step = 2000;
+
+			var pagesInBatch = new List<Api.Page> ();
+			foreach (var page in pages) {
+				pagesInBatch.Add (page);
+				if (pagesInBatch.Count == step) {
+					UpdateBatch (pagesInBatch, saveCallback, pageDoneCallback, logCallback);
+					pagesInBatch.Clear ();
 				}
 			}
-			if (pages.Count != 0)
-				UpdateBatch (pages, saveCallback, pageDoneCallback, logCallback);
+			if (pagesInBatch.Count != 0)
+				UpdateBatch (pagesInBatch, saveCallback, pageDoneCallback, logCallback);
 		}
 
 		protected static void UpdateBatch (
@@ -142,22 +139,28 @@ namespace translinkupdater
 							oldWikitext, proposedWikitext, out wikitext)) {
 						page.Text = wikitext;
 
-						Api.SavePage (
-							page,
-							summary,
-							nocreate: true,
-							bot: proposedWikitext == wikitext);
-						LogWrite (log, "{0}: Saved ({1})",
-						         page.Title,
-						         summary);
+						try {
+							Api.SavePage (
+								page,
+								summary,
+								nocreate: true,
+								bot: proposedWikitext == wikitext);
+							LogWrite (log, "{0}: Saved ({1})",
+							         page.Title,
+							         summary);
+						} catch (Api.EditConflictException) {
+							LogWrite (log, "{0}: Edit conflict, skipped ({1})",
+							          page.Title,
+							          summary);
+						}
 					} else {
 						LogWrite (log, "{0}: Chose not to save ({1})",
 						         page.Title,
 						         summary);
 					}
 				} else {
-					LogWrite (log, "{0}: No update",
-					          page.Title);
+					Console.WriteLine ("{0}: No update",
+					                  page.Title);
 				}
 				pageDoneCallback (page.Title);
 			}
@@ -206,6 +209,17 @@ namespace translinkupdater
 					wikitext = newWikitext;
 				}
 			}
+
+			if (wikitext.IndexOf ("\n=====Översättningar=====\n") != -1) {
+				summaryParts.Add ("översättningsrubrik är H4");
+				wikitext = wikitext.Replace ("\n=====Översättningar=====\n", "\n====Översättningar====\n");
+			}
+
+			if (wikitext.IndexOf ("\n====Motsvarande namn på andra språk====\n") != -1) {
+				summaryParts.Add ("'Motsvarande namn på andra språk' > 'Översättningar'");
+				wikitext = wikitext.Replace ("\n====Motsvarande namn på andra språk====\n", "\n====Översättningar====\n");
+			}
+
 			return wikitext;
 		}
 
@@ -228,6 +242,15 @@ namespace translinkupdater
 			if (section.Text.IndexOf ("\n:*") != -1) {
 				section.Text = section.Text.Replace ("\n:*", "\n**");
 				summary.Add ("underspråk med **");
+			}
+			if (section.Text.IndexOf ("\n**") != -1
+				&& Regex.IsMatch (section.Text, @"\*[^:\n[\]{}]+\n\*\*")) {
+				section.Text = Regex.Replace (
+					section.Text,
+					@"(\*[^:\n[\]{}]+)(\n\*\*)",
+					"$1:$2");
+				summary.Add ("huvudspråk följt av kolon");
+
 			}
 			if (section.Text.IndexOf ("\n**bokmål:") != -1 || section.Text.IndexOf ("\n**nynorska:") != -1) {
 				var newText = section.Text;
@@ -488,13 +511,21 @@ namespace translinkupdater
 				int position = nextStart;
 				nextStart += line.Length + 1; // +1 for \n
 
-				if (!line.StartsWith ("*") || line.IndexOf (':') == -1)
+				if (!line.StartsWith ("*"))
 					continue;
+				if (line.IndexOf (':') == -1) {
+					if (Regex.IsMatch(line, @"^\*[^[\]{}]+$")) {
+						// assume missed colon
+						var langName = line.Substring (1);
+						lang = Language.GetCode (langName.Trim ());
+					}
+					continue;
+				}
 				if (line.StartsWith ("**")) {
 					if (line.StartsWith ("**nynorska:")) {
 						// special case which will be handled later either way
 						lang = "nn";
-					} else if (line.StartsWith("**bokmål:")) {
+					} else if (line.StartsWith ("**bokmål:")) {
 						lang = "no";
 					} else {
 						// do nothing, use the language from the previous line
@@ -578,8 +609,12 @@ namespace translinkupdater
 
 		public static List<Section> GetTranslationSections (string title, string wikitext)
 		{
+			if (wikitext.IndexOf ("\n=====Översättningar=====\n") != -1)
+				wikitext = wikitext.Replace ("\n=====Översättningar=====\n", "\n====Översättningar====\n");
+
 			var res = new List<Section> ();
 			for (int end = 0; end < wikitext.Length;) {
+
 				int s1 = wikitext.IndexOf ("\n====Översättningar====\n", end);
 				int s2 = wikitext.IndexOf ("\n====Motsvarande namn på andra språk====\n", end);
 				int start = s1 == -1 ? s2

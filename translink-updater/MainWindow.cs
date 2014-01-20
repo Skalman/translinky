@@ -33,6 +33,7 @@ public partial class MainWindow: Gtk.Window
 
 	protected void OnBtnUpdateClicked (object sender, EventArgs e)
 	{
+		SelectSource (true);
 		if (Api.SignedInUser == null) {
 			var signInWindow = new SignInWindow ();
 			signInWindow.Show ();
@@ -64,7 +65,11 @@ public partial class MainWindow: Gtk.Window
 	protected void Log (string message)
 	{
 		Gtk.Application.Invoke (delegate {
-			textviewLog.Buffer.Text = message + "\n" + textviewLog.Buffer.Text;
+			if (textviewLog.Buffer.CharCount > 15000) {
+				textviewLog.Buffer.Text = message + "\n" + textviewLog.Buffer.Text.Substring(0, 10000) + "...";
+			} else {
+				textviewLog.Buffer.Text = message + "\n" + textviewLog.Buffer.Text;
+			}
 		}
 		);
 		Console.WriteLine (message);
@@ -73,9 +78,34 @@ public partial class MainWindow: Gtk.Window
 	protected void Update ()
 	{
 		try {
+			IEnumerable<Api.Page> pages;
+			var maxPages = int.Parse (entryMax.Text);
+			var startAt = entryStart.Text;
+			if (source == "dump") {
+				var dr = new DumpReader (dumpFilename);
+				pages = dr.Pages (
+						namespaces: new SortedSet<int> () {0},
+						startAt: startAt,
+						maxPages: maxPages
+				);
+	
+			} else if (source == "live") {
+				pages = Api.PagesInCategory (
+					"Svenska/Alla uppslag",
+					ns: 0,
+					step: 250,
+					maxPages: maxPages,
+					startAt: startAt
+				);
+			} else if (source == "titles") {
+				// TODO
+				// pages = Api.GetPages();
+				throw new NotImplementedException();
+			} else {
+				throw new Exception("Internal error: source not defined");
+			}
 			TranslationLinkUpdater.Update (
-				startAt: entryStart.Text,
-				maxPages: int.Parse (entryMax.Text),
+				pages: pages,
 				saveCallback: SaveCallback,
 				pageDoneCallback: PageDoneCallback,
 				logCallback: Log);
@@ -137,7 +167,7 @@ public partial class MainWindow: Gtk.Window
 			textviewBefore.Buffer.Text = before;
 			textviewAfter.Buffer.Text = after;
 			vboxConfirmEdit.Sensitive = true;
-			entrySummary.GrabFocus();
+			entrySummary.GrabFocus ();
 		}
 		);
 		saveCallbackAnswer = null;
@@ -180,6 +210,76 @@ public partial class MainWindow: Gtk.Window
 		saveCallbackAnswer = "save";
 	}
 
+	protected void OnButtonSpecifySourceClicked (object sender, EventArgs e)
+	{
+		SelectSource (false);
+	}
 
+	protected void OnComboboxSourceChanged (object sender, EventArgs e)
+	{
+		SelectSource (true);
+	}
 
+	string source = null;
+	string dumpFilename = null;
+
+	protected void SelectSource (bool useExistingSelection)
+	{
+		if (comboboxSource.Active == 0) {
+			source = "dump";
+			if (!useExistingSelection || dumpFilename == null) {
+				var fc = new FileChooserDialog (
+					"Välj dump-fil",
+					this,
+					FileChooserAction.Open,
+					"Avbryt", ResponseType.Cancel,
+					"Öppna", ResponseType.Accept);
+
+				if (fc.Run () == (int)ResponseType.Accept) {
+					dumpFilename = fc.Filename;
+				}
+				fc.Destroy ();
+			}
+			
+			if (dumpFilename == null) {
+				buttonSpecifySource.Label = "...";
+			} else {
+				if (dumpFilename.Length < 18)
+					buttonSpecifySource.Label = dumpFilename;
+				else
+					buttonSpecifySource.Label = "..." +
+						dumpFilename.Substring (dumpFilename.Length - 18);
+			}
+		} else if (comboboxSource.Active == 1) {
+			// source = "titles";
+			throw new NotImplementedException ();
+		}
+	}
+
+	protected IEnumerable<Api.Page> GetPages ()
+	{
+		if (source == "dump") {
+			var dr = new DumpReader (dumpFilename);
+			return dr.Pages (namespaces: new SortedSet<int> () {0});
+		} else {
+			throw new NotImplementedException ();
+		}
+
+		/*
+		var i = 0;
+		var pages = dr.Pages (namespaces: new SortedSet<int> () {0});
+
+		foreach (var page in pages) {
+			if (i % 10000 == 0) {
+				var now = DateTime.Now;
+				Console.WriteLine (
+					"title={0}  |  timestamp={1} | {2}",
+					page.Title, page.Timestamp,
+
+					now);
+			}
+			i++;
+		}
+		*/
+	}
 }

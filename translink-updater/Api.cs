@@ -223,18 +223,22 @@ namespace translinkupdater
 				cookies: true
 			);
 
-			if (editResponse ["error"] != null && (string)editResponse ["error"] ["code"] == "badtoken") {
-				var loggedInInfo = Get ("action=query&meta=userinfo&uiprop=groups", cookies: true);
-				if (loggedInInfo ["query"] ["userinfo"] ["anon"] != null) {
-					_signedInUser = null;
-					EditToken = null;
-					throw new NotLoggedInException ();
-				} else {
-					throw new Exception (
-						"Logged in as " +
-						loggedInInfo ["query"] ["userinfo"] ["name"] +
-						" but has invalid token."
-					);
+			if (editResponse ["error"] != null) {
+				if ((string)editResponse ["error"] ["code"] == "badtoken") {
+					var loggedInInfo = Get ("action=query&meta=userinfo&uiprop=groups", cookies: true);
+					if (loggedInInfo ["query"] ["userinfo"] ["anon"] != null) {
+						_signedInUser = null;
+						EditToken = null;
+						throw new NotLoggedInException ();
+					} else {
+						throw new Exception (
+							"Logged in as " +
+							loggedInInfo ["query"] ["userinfo"] ["name"] +
+							" but has invalid token."
+						);
+					}
+				} else if ((string)editResponse ["error"] ["code"] == "editconflict") {
+					throw new EditConflictException ();
 				}
 			}
 
@@ -248,6 +252,13 @@ namespace translinkupdater
 		public class NotLoggedInException : Exception
 		{
 			public NotLoggedInException () : base()
+			{
+			}
+		}
+
+		public class EditConflictException : Exception
+		{
+			public EditConflictException () : base()
 			{
 			}
 		}

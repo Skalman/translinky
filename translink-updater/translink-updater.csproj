@@ -60,6 +60,9 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>Json50r8\Bin\Net35\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.Linq" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="gtk-gui\gui.stetic">
@@ -79,6 +82,9 @@
     <Compile Include="gtk-gui\translinkupdater.SignInWindow.cs" />
     <Compile Include="Section.cs" />
     <Compile Include="Language.cs" />
+    <Compile Include="DumpReader.cs" />
+    <Compile Include="TitleList.cs" />
+    <Compile Include="gtk-gui\translinkupdater.TitleList.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
