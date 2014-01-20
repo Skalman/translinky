@@ -157,7 +157,8 @@
                         <property name="MemberName" />
                         <property name="IsTextCombo">True</property>
                         <property name="Items" translatable="yes">Dump
-Lista över sidnamn</property>
+Lista över sidnamn
+Live</property>
                         <property name="Active">0</property>
                         <signal name="Changed" handler="OnComboboxSourceChanged" />
                       </widget>

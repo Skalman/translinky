@@ -139,6 +139,7 @@ public partial class MainWindow
 		this.comboboxSource = global::Gtk.ComboBox.NewText ();
 		this.comboboxSource.AppendText (global::Mono.Unix.Catalog.GetString ("Dump"));
 		this.comboboxSource.AppendText (global::Mono.Unix.Catalog.GetString ("Lista över sidnamn"));
+		this.comboboxSource.AppendText (global::Mono.Unix.Catalog.GetString ("Live"));
 		this.comboboxSource.Name = "comboboxSource";
 		this.comboboxSource.Active = 0;
 		this.table2.Add (this.comboboxSource);

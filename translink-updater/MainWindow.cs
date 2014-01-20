@@ -250,9 +250,14 @@ public partial class MainWindow: Gtk.Window
 					buttonSpecifySource.Label = "..." +
 						dumpFilename.Substring (dumpFilename.Length - 18);
 			}
+			buttonSpecifySource.Sensitive = false;
 		} else if (comboboxSource.Active == 1) {
 			// source = "titles";
 			throw new NotImplementedException ();
+		} else if (comboboxSource.Active == 2) {
+			source = "live";
+			buttonSpecifySource.Label = "Från kategori";
+			buttonSpecifySource.Sensitive = false;
 		}
 	}
 
